@@ -1,0 +1,652 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String            @id @default(uuid())
+  email         String            @unique
+  name          String
+  passwordHash  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  memberships   ProductionMember[]
+  activityLogs  ActivityLog[]     @relation("ActivityActor")
+  notifications Notification[]
+}
+
+model Production {
+  id         String            @id @default(uuid())
+  name       String
+  status     ProductionStatus  @default(PRE_PRODUCTION)
+  startDate  DateTime?
+  wrapDate   DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  members       ProductionMember[]
+  locations     Location[]
+  sets          Set[]
+  assets        Asset[]
+  assetTags     AssetTag[]
+  scripts       Script[]
+  scenes        Scene[]
+  characters    Character[]
+  schedules     Schedule[]
+  ganttPhases   GanttPhase[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+}
+
+enum ProductionStatus {
+  PRE_PRODUCTION
+  ACTIVE
+  WRAPPING
+  WRAPPED
+}
+
+model ProductionMember {
+  id                   String                @id @default(uuid())
+  productionId         String
+  userId               String
+  role                 Role
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  production           Production            @relation(fields: [productionId], references: [id])
+  user                 User                  @relation(fields: [userId], references: [id])
+  coordinatorVisibility CoordinatorVisibility?
+
+  @@unique([productionId, userId])
+}
+
+enum Role {
+  ART_DIRECTOR
+  PRODUCTION_DESIGNER
+  COORDINATOR
+  SET_DECORATOR
+  LEADMAN
+  PROPS_MASTER
+  VIEWER
+}
+
+model CoordinatorVisibility {
+  id                String           @id @default(uuid())
+  productionMemberId String          @unique
+  showScript        Boolean          @default(true)
+  showSchedule      Boolean          @default(true)
+  showSets          Boolean          @default(true)
+  showAssets        Boolean          @default(true)
+  showLocations     Boolean          @default(true)
+  showBudget        Boolean          @default(false)
+  updatedAt         DateTime         @updatedAt
+  member            ProductionMember @relation(fields: [productionMemberId], references: [id])
+}
+
+model Location {
+  id               String       @id @default(uuid())
+  productionId     String
+  name             String
+  type             LocationType
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  notes            String?
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  production       Production   @relation(fields: [productionId], references: [id])
+  files            LocationFile[]
+  setLocations     SetLocation[]
+}
+
+enum LocationType {
+  STUDIO_STAGE
+  EXTERIOR
+  VEHICLE
+  PRACTICAL_INTERIOR
+  BASE
+  OTHER
+}
+
+model LocationFile {
+  id           String       @id @default(uuid())
+  locationId   String
+  fileType     FileCategory
+  filename     String
+  storageKey   String
+  mimeType     String
+  size         Int
+  uploadedBy   String
+  uploadedAt   DateTime     @default(now())
+  notes        String?
+
+  location     Location     @relation(fields: [locationId], references: [id])
+}
+
+enum FileCategory {
+  PICTURE
+  DRAWING
+}
+
+model Set {
+  id            String      @id @default(uuid())
+  productionId  String
+  name          String
+  parentSetId   String?
+  level         Int         @default(1)
+  notes           String?
+  scriptedAliases String[]
+  status          SetStatus   @default(IDEATION)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  production       Production  @relation(fields: [productionId], references: [id])
+  parent           Set?        @relation("SetHierarchy", fields: [parentSetId], references: [id])
+  children         Set[]       @relation("SetHierarchy")
+  locations        SetLocation[]
+  files            SetFile[]
+  assetAssignments AssetSetMap[]
+  characterAssets  CharacterAsset[]
+  scenes           Scene[]
+  ganttPhases      SetPhase[]
+
+  @@index([productionId])
+  @@index([parentSetId])
+}
+
+enum SetStatus {
+  IDEATION
+  DESIGN
+  BUILD
+  DRESS
+  REHEARSAL
+  SHOOT
+  STRIKE
+  WRAPPED
+}
+
+model SetLocation {
+  id         String   @id @default(uuid())
+  setId      String
+  locationId String
+  createdAt  DateTime @default(now())
+
+  set        Set      @relation(fields: [setId], references: [id])
+  location   Location @relation(fields: [locationId], references: [id])
+
+  @@unique([setId, locationId])
+}
+
+model SetFile {
+  id           String       @id @default(uuid())
+  setId        String
+  fileType     FileCategory
+  photoCategory PhotoCategory?
+  filename     String
+  storageKey   String
+  mimeType     String
+  size         Int
+  uploadedBy   String
+  uploadedAt   DateTime     @default(now())
+
+  set          Set          @relation(fields: [setId], references: [id])
+}
+
+enum PhotoCategory {
+  REFERENCE
+  IN_PROGRESS
+  FINAL
+  ON_SET
+}
+
+model AssetTag {
+  id           String        @id @default(uuid())
+  productionId String
+  name         String
+  createdAt    DateTime      @default(now())
+
+  production   Production    @relation(fields: [productionId], references: [id])
+  assets       AssetTagMap[]
+
+  @@unique([productionId, name])
+}
+
+model Asset {
+  id           String         @id @default(uuid())
+  productionId String
+  name         String
+  category     AssetCategory
+  description  String?
+  notes        String?
+  dimensions   String?
+  quantity     Int            @default(1)
+  budgetCost    Decimal?       @db.Decimal(10, 2)
+  actualCost    Decimal?       @db.Decimal(10, 2)
+  sourceVendor  String?
+  status        AssetStatus    @default(IN_SOURCING)
+  deletedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  production       Production        @relation(fields: [productionId], references: [id])
+  tags             AssetTagMap[]
+  setAssignments   AssetSetMap[]
+  files            AssetFile[]
+  continuityEvents ContinuityEvent[]
+  sceneAssignments SceneAsset[]
+  characterAssets  CharacterAsset[]
+
+  @@index([productionId])
+}
+
+enum AssetCategory {
+  PROPS
+  SET_DRESSING
+  GRAPHICS
+  FURNITURE
+  VEHICLES
+  EXPENDABLES
+  SOFT_FURNISHINGS
+  GREENS
+  WEAPONS
+  FOOD
+  ANIMALS
+  SPECIAL_EFFECTS
+  OTHER
+}
+
+enum AssetStatus {
+  IN_SOURCING
+  CONFIRMED
+  ON_SET
+  RETURNED
+  STRUCK
+}
+
+model AssetTagMap {
+  id      String   @id @default(uuid())
+  assetId String
+  tagId   String
+
+  asset   Asset    @relation(fields: [assetId], references: [id])
+  tag     AssetTag @relation(fields: [tagId], references: [id])
+
+  @@unique([assetId, tagId])
+}
+
+model AssetSetMap {
+  id      String @id @default(uuid())
+  assetId String
+  setId   String
+
+  asset   Asset  @relation(fields: [assetId], references: [id])
+  set     Set    @relation(fields: [setId], references: [id])
+
+  @@unique([assetId, setId])
+}
+
+model AssetFile {
+  id          String   @id @default(uuid())
+  assetId     String
+  filename    String
+  storageKey  String
+  mimeType    String
+  size        Int
+  uploadedBy  String
+  uploadedAt  DateTime @default(now())
+
+  asset       Asset    @relation(fields: [assetId], references: [id])
+}
+
+model ContinuityEvent {
+  id          String                @id @default(uuid())
+  assetId     String
+  sceneNumber String
+  state       ContinuityState
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  asset       Asset                 @relation(fields: [assetId], references: [id])
+  files       ContinuityEventFile[]
+
+  @@index([assetId])
+}
+
+enum ContinuityState {
+  PRESENT
+  ABSENT
+  MODIFIED
+  HERO
+  DAMAGED
+  DRESSED
+  STRUCK
+}
+
+model ContinuityEventFile {
+  id                String          @id @default(uuid())
+  continuityEventId String
+  filename          String
+  storageKey        String
+  mimeType          String
+  size              Int
+  uploadedBy        String
+  uploadedAt        DateTime        @default(now())
+
+  continuityEvent   ContinuityEvent @relation(fields: [continuityEventId], references: [id])
+}
+
+// ─── Script & Scene Models ───────────────────────────────────────────────────
+
+model Script {
+  id             String        @id @default(uuid())
+  productionId   String
+  versionLabel   String
+  filename       String
+  storageKey     String
+  uploadedAt     DateTime      @default(now())
+  uploadedBy     String
+  reviewStatus   ReviewStatus  @default(PENDING_REVIEW)
+  wizardComplete Boolean       @default(false)
+  diffFromId     String?
+
+  production    Production    @relation(fields: [productionId], references: [id])
+  diffFrom      Script?       @relation("ScriptDiff", fields: [diffFromId], references: [id])
+  diffVersions  Script[]      @relation("ScriptDiff")
+  scenes        Scene[]
+
+  @@index([productionId])
+}
+
+enum ReviewStatus {
+  PENDING_REVIEW
+  IN_REVIEW
+  APPROVED
+}
+
+model Scene {
+  id                   String        @id @default(uuid())
+  scriptId             String
+  productionId         String
+  sceneNumber          String
+  parentSceneId        String?
+  intExt               IntExt
+  scriptedLocationName String
+  setId                String?
+  timeOfDay            TimeOfDay
+  synopsis             String?
+  notes                String?
+  pageCount            Decimal?      @db.Decimal(5, 3)
+  changeFlag           ChangeFlag    @default(NONE)
+  changeReviewed       Boolean       @default(false)
+  wizardStatus         WizardStatus  @default(PENDING)
+  sceneText            String?
+  deletedAt            DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  script               Script           @relation(fields: [scriptId], references: [id])
+  production           Production       @relation(fields: [productionId], references: [id])
+  parent               Scene?           @relation("SceneSplit", fields: [parentSceneId], references: [id])
+  children             Scene[]          @relation("SceneSplit")
+  set                  Set?             @relation(fields: [setId], references: [id])
+  assetAssignments     SceneAsset[]
+  characters           SceneCharacter[]
+  scheduleEntry        SceneSchedule?
+
+  @@index([scriptId])
+  @@index([productionId])
+}
+
+enum IntExt {
+  INT
+  EXT
+  INT_EXT
+}
+
+enum TimeOfDay {
+  DAY
+  NIGHT
+  DAWN
+  DUSK
+  CONTINUOUS
+  LATER
+  MOMENTS_LATER
+}
+
+enum ChangeFlag {
+  NONE
+  MODIFIED
+  ADDED
+  OMITTED
+  RENUMBERED
+}
+
+enum WizardStatus {
+  PENDING
+  COMPLETE
+  SKIPPED
+}
+
+model SceneAsset {
+  id        String  @id @default(uuid())
+  sceneId   String
+  assetId   String
+
+  scene     Scene   @relation(fields: [sceneId], references: [id])
+  asset     Asset   @relation(fields: [assetId], references: [id])
+
+  @@unique([sceneId, assetId])
+}
+
+// ─── Characters ──────────────────────────────────────────────────────────────
+
+model Character {
+  id               String           @id @default(uuid())
+  productionId     String
+  name             String
+  height           String?
+  photograph       String?
+  notes            String?
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now()) @updatedAt
+
+  production       Production       @relation(fields: [productionId], references: [id])
+  sceneAppearances SceneCharacter[]
+  characterAssets  CharacterAsset[]
+
+  @@unique([productionId, name])
+  @@index([productionId])
+}
+
+model CharacterAsset {
+  id          String    @id @default(uuid())
+  characterId String
+  assetId     String
+  setId       String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  character   Character @relation(fields: [characterId], references: [id])
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  set         Set?      @relation(fields: [setId], references: [id])
+
+  @@unique([characterId, assetId])
+  @@index([characterId])
+  @@index([assetId])
+}
+
+model SceneCharacter {
+  sceneId     String
+  characterId String
+
+  scene       Scene     @relation(fields: [sceneId], references: [id])
+  character   Character @relation(fields: [characterId], references: [id])
+
+  @@id([sceneId, characterId])
+}
+
+// ─── Schedule ────────────────────────────────────────────────────────────────
+
+model Schedule {
+  id             String         @id @default(uuid())
+  productionId   String
+  versionLabel   String
+  publishedAt    DateTime?
+  publishedBy    String?
+  status         ScheduleStatus @default(DRAFT)
+  diffFromId     String?
+  changeSummary  Json?          // Array of change strings describing differences from diffFromId
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  production     Production     @relation(fields: [productionId], references: [id])
+  shootDays      ShootDay[]
+  diffFrom       Schedule?      @relation("ScheduleDiff", fields: [diffFromId], references: [id])
+  diffVersions   Schedule[]     @relation("ScheduleDiff")
+
+  @@index([productionId])
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model ShootDay {
+  id           String          @id @default(uuid())
+  scheduleId   String
+  dayNumber    Int
+  date         DateTime?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  schedule     Schedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scenes       SceneSchedule[]
+
+  @@unique([scheduleId, dayNumber])
+  @@index([scheduleId])
+}
+
+model SceneSchedule {
+  id         String   @id @default(uuid())
+  shootDayId String
+  sceneId    String
+  order      Int      @default(0)
+
+  shootDay   ShootDay @relation(fields: [shootDayId], references: [id], onDelete: Cascade)
+  scene      Scene    @relation(fields: [sceneId], references: [id])
+
+  @@unique([sceneId])
+  @@index([shootDayId])
+}
+
+// ─── Gantt ───────────────────────────────────────────────────────────────────
+
+model GanttPhase {
+  id           String     @id @default(uuid())
+  productionId String
+  name         String
+  color        String     // Hex color code for display
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  production   Production @relation(fields: [productionId], references: [id])
+  setPhases    SetPhase[]
+
+  @@unique([productionId, name])
+  @@index([productionId])
+}
+
+model SetPhase {
+  id           String     @id @default(uuid())
+  setId        String
+  phaseId      String
+  startDate    DateTime
+  endDate      DateTime
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  set          Set        @relation(fields: [setId], references: [id], onDelete: Cascade)
+  phase        GanttPhase @relation(fields: [phaseId], references: [id], onDelete: Restrict)
+
+  @@unique([setId, phaseId])
+  @@index([setId])
+  @@index([phaseId])
+}
+
+// ─── Activity Feed & Notifications ───────────────────────────────────────────
+
+enum ActivityEntityType {
+  ASSET
+  SET
+  LOCATION
+  CHARACTER
+  SCENE
+  SCRIPT
+  SCHEDULE
+  SHOOT_DAY
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  STATUS_CHANGED
+  PUBLISHED
+  UPLOADED
+  REVIEWED
+  FLAGGED
+}
+
+enum NotificationUrgency {
+  NORMAL
+  HIGH
+  URGENT
+  NEEDS_REVIEW
+}
+
+model ActivityLog {
+  id            String             @id @default(uuid())
+  productionId  String
+  entityType    ActivityEntityType
+  entityId      String
+  entityName    String
+  action        ActivityAction
+  actorId       String
+  metadata      Json?
+  createdAt     DateTime           @default(now())
+
+  production    Production         @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  actor         User               @relation("ActivityActor", fields: [actorId], references: [id])
+  notifications Notification[]
+
+  @@index([productionId, createdAt])
+  @@index([productionId, entityType])
+}
+
+model Notification {
+  id            String              @id @default(uuid())
+  userId        String
+  productionId  String
+  activityLogId String
+  urgency       NotificationUrgency @default(NORMAL)
+  readAt        DateTime?
+  createdAt     DateTime            @default(now())
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  production    Production          @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  activityLog   ActivityLog         @relation(fields: [activityLogId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, productionId])
+}
