@@ -21,6 +21,8 @@ async function proxyRequest(
   // request.text() would corrupt non-UTF-8 binary content such as PDF bytes.
   const body = hasBody ? await request.arrayBuffer() : undefined;
 
+  console.log(`[proxy] ${request.method} ${targetUrl} content-type=${contentType ?? 'none'} body-bytes=${body?.byteLength ?? 0} auth=${authorization ? 'present' : 'missing'}`);
+
   try {
     const response = await fetch(targetUrl, {
       method: request.method,
@@ -29,6 +31,8 @@ async function proxyRequest(
     });
 
     const responseText = await response.text();
+
+    console.log(`[proxy] response status=${response.status} body=${responseText.slice(0, 300)}`);
 
     return new NextResponse(responseText, {
       status: response.status,
