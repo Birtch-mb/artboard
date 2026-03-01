@@ -62,7 +62,7 @@ export default function CharacterDetailClient({
     token: string;
 }) {
     const router = useRouter();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = '/api/proxy';
 
     const [character, setCharacter] = useState(initialCharacter);
     const [editing, setEditing] = useState(false);

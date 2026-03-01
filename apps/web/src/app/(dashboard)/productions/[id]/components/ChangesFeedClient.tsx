@@ -129,7 +129,7 @@ export default function ChangesFeedClient({
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBase = '/api/proxy';
 
   // Socket.io real-time updates
   useEffect(() => {

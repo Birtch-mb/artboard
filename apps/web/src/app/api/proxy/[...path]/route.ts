@@ -17,7 +17,9 @@ async function proxyRequest(
   if (authorization) headers['authorization'] = authorization;
 
   const hasBody = !['GET', 'HEAD'].includes(request.method);
-  const body = hasBody ? await request.text() : undefined;
+  // Use arrayBuffer to preserve binary data (e.g. multipart/form-data file uploads).
+  // request.text() would corrupt non-UTF-8 binary content such as PDF bytes.
+  const body = hasBody ? await request.arrayBuffer() : undefined;
 
   try {
     const response = await fetch(targetUrl, {

@@ -125,7 +125,7 @@ export default function SetDetailClient({
     const handleRemoveAlias = async (alias: string) => {
         setRemovingAlias(alias);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/sets/${set.id}/aliases`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.accessToken}` },
@@ -301,7 +301,7 @@ export default function SetDetailClient({
                 formData.append('photoCategory', category);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'}/productions/${productionId}/sets/${set.id}/files`, {
+            const response = await fetch(`/api/proxy/productions/${productionId}/sets/${set.id}/files`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${session?.accessToken}`,

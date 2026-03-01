@@ -97,7 +97,7 @@ export default function NotificationBell({ productionId, accessToken, userId }: 
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBase = '/api/proxy';
 
   // Fetch initial unread count
   useEffect(() => {

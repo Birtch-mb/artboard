@@ -99,7 +99,7 @@ export default function FileGallery({
             formData.append('file', file);
             formData.append('fileType', fileCategory);
 
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/locations/${locationId}/files`, {
                 method: 'POST',
                 headers: {

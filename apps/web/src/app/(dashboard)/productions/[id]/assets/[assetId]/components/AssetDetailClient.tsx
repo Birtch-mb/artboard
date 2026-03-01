@@ -210,7 +210,7 @@ export default function AssetDetailClient({
         formData.append('file', file);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/assets/${asset.id}/files`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
@@ -259,7 +259,7 @@ export default function AssetDetailClient({
             if (contFile) {
                 const formData = new FormData();
                 formData.append('file', contFile);
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                const apiUrl = '/api/proxy';
                 const fileRes = await fetch(`${apiUrl}/productions/${productionId}/assets/${asset.id}/continuity/${ev.id}/files`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` },

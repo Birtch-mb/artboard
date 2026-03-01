@@ -156,7 +156,7 @@ function AddScenePanel({
         setSaving(true);
         setError('');
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const body: Record<string, any> = {
                 sceneNumber: form.sceneNumber.trim(),
                 intExt: form.intExt,
@@ -392,7 +392,7 @@ function SplitSceneModal({
         setSaving(true);
         setError('');
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(
                 `${apiUrl}/productions/${productionId}/scenes/${scene.id}/split`,
                 {
@@ -510,7 +510,7 @@ function CreateSetModal({
         setSaving(true);
         setError('');
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/sets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -607,7 +607,7 @@ function SceneDetail({
     const [charSearch, setCharSearch] = useState('');
     const [assigning, setAssigning] = useState(false);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = '/api/proxy';
 
     // Load full scene detail (with assets) on mount
     const loadDetail = async () => {

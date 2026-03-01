@@ -57,7 +57,7 @@ export default function AssetListClient({
         // Optimistic update
         setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: newStatus } : a));
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/assets/${assetId}`, {
                 method: 'PATCH',
                 headers: {

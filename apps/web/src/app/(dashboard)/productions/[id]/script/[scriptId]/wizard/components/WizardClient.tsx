@@ -475,7 +475,7 @@ function CompletionScreen({
     token: string;
 }) {
     const router = useRouter();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = '/api/proxy';
 
     const handleGoToBreakdown = async () => {
         await fetch(`${apiUrl}/productions/${productionId}/scripts/${scriptId}`, {
@@ -538,7 +538,7 @@ export default function WizardClient({
     token: string;
 }) {
     const router = useRouter();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = '/api/proxy';
 
     // Sort top-level scenes only (no sub-scenes in wizard)
     const sortedScenes = [...initialScenes]

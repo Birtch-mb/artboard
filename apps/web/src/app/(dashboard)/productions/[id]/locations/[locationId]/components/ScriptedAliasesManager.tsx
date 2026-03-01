@@ -49,7 +49,7 @@ export default function ScriptedAliasesManager({
         setRemovingAlias(alias);
         try {
             // DELETE with a body — use raw fetch since createApiClient.delete doesn't support it
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(
                 `${apiUrl}/productions/${productionId}/locations/${locationId}/aliases`,
                 {

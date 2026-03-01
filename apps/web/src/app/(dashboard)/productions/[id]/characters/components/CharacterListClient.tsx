@@ -32,7 +32,7 @@ export default function CharacterListClient({
     const handleDelete = async (characterId: string) => {
         setDeletingId(characterId);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/characters/${characterId}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
@@ -51,7 +51,7 @@ export default function CharacterListClient({
         setCreateError('');
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/characters`, {
                 method: 'POST',
                 headers: {

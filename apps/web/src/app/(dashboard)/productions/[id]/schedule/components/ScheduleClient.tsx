@@ -49,7 +49,7 @@ type Props = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = '/api/proxy';
 
 function sortScenes(scenes: SceneData[]) {
   return [...scenes].sort((a, b) => {

@@ -54,7 +54,7 @@ export default function ScriptVersionListClient({
         setDeleting(true);
         setDeleteError('');
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/scripts/${deleteTarget.id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
@@ -91,7 +91,7 @@ export default function ScriptVersionListClient({
             formData.append('file', selectedFile);
             formData.append('versionLabel', versionLabel.trim());
 
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/scripts`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
@@ -123,7 +123,7 @@ export default function ScriptVersionListClient({
     const handleDownload = async (e: React.MouseEvent, scriptId: string) => {
         e.stopPropagation();
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const apiUrl = '/api/proxy';
             const res = await fetch(`${apiUrl}/productions/${productionId}/scripts/${scriptId}/url`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
