@@ -1,4 +1,14 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001';
+// Server-side: call backend directly using API_URL (not subject to CORS).
+// Browser-side: route through the Next.js proxy at /api/proxy to avoid CORS
+// and remove the dependency on NEXT_PUBLIC_API_URL being baked at build time.
+function getBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    // Running on the Next.js server (server components, auth callbacks, etc.)
+    return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+  }
+  // Running in the browser — use the local Next.js proxy route
+  return '/api/proxy';
+}
 
 export class ApiError extends Error {
   constructor(
@@ -22,7 +32,7 @@ async function request<T>(
     ...(fetchOptions.headers || {}),
   };
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${getBaseUrl()}${path}`, {
     ...fetchOptions,
     headers,
   });
