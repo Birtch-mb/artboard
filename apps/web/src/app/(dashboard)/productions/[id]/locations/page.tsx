@@ -5,7 +5,7 @@ import { createApiClient, ApiError } from '@/lib/api-client';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import LocationListClient from './components/LocationListClient';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 
 export default async function LocationsPage({
     params,

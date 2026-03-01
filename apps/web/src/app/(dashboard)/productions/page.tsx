@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ProductionStatus, Role } from '@artboard/shared';
+import { ProductionStatus, Role } from '@/lib/types';
 
 const STATUS_LABELS: Record<ProductionStatus, string> = {
   PRE_PRODUCTION: 'Pre-Production',

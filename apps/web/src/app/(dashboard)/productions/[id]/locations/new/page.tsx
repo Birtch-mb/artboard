@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
 import { notFound, redirect } from 'next/navigation';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import NewLocationForm from './components/NewLocationForm';
 
 export default async function NewLocationPage({ params }: { params: { id: string } }) {

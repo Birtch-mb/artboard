@@ -5,7 +5,7 @@ import { createApiClient, ApiError } from '@/lib/api-client';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import AssetListClient from './components/AssetListClient';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 
 export default async function AssetsPage({
     params,

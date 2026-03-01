@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import ScriptVersionListClient from './components/ScriptVersionListClient';
 
 export default async function ScriptPage({

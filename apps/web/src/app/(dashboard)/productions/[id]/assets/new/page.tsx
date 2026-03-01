@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
 import { notFound, redirect } from 'next/navigation';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import NewAssetForm from './components/NewAssetForm';
 
 export default async function NewAssetPage({ params }: { params: { id: string } }) {

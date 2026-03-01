@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import { InviteMemberForm } from './invite-form';
 import { MemberRow } from './member-row';
 import { GanttSettings } from './gantt-settings';

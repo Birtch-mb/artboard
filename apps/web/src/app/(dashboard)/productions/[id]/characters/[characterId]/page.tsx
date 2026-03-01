@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import CharacterDetailClient from './components/CharacterDetailClient';
 
 export default async function CharacterDetailPage({

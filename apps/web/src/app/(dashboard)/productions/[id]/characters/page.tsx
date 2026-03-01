@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { createApiClient, ApiError } from '@/lib/api-client';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import CharacterListClient from './components/CharacterListClient';

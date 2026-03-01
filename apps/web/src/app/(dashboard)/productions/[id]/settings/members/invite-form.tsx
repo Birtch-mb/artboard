@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createApiClient } from '@/lib/api-client';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 
 export function InviteMemberForm({ productionId, token }: { productionId: string; token: string }) {
   const router = useRouter();

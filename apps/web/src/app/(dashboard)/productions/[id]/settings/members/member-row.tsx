@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createApiClient } from '@/lib/api-client';
-import { Role } from '@artboard/shared';
+import { Role } from '@/lib/types';
 
 interface Member {
   id: string;
