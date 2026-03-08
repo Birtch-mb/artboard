@@ -5,7 +5,7 @@
     "buildCommand": "npx prisma generate && pnpm build"
   },
   "deploy": {
-    "startCommand": "npx prisma db push && node dist/main",
+    "startCommand": "npx prisma db push --accept-data-loss && node dist/main",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
