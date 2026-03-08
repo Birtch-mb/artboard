@@ -51,26 +51,31 @@ export default function ScriptVersionListClient({
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState('');
+    // Ref-based guard so a second click before React commits deleting=true can't slip through
+    const deletingRef = useRef(false);
 
     const handleDelete = async () => {
-        if (!deleteTarget || deleting) return;
+        if (!deleteTarget || deletingRef.current) return;
+        deletingRef.current = true;
         setDeleting(true);
         setDeleteError('');
+        // Capture id now — don't rely on deleteTarget closure after the await
+        const targetId = deleteTarget.id;
         try {
-            const apiUrl = '/api/proxy';
-            const res = await fetch(`${apiUrl}/productions/${productionId}/scripts/${deleteTarget.id}`, {
+            const res = await fetch(`/api/proxy/productions/${productionId}/scripts/${targetId}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok && res.status !== 204) {
+            if (!res.ok) {
                 const err = await res.json().catch(() => ({ message: 'Delete failed' }));
                 throw new Error(err.message || 'Delete failed');
             }
-            setScripts((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+            setScripts((prev) => prev.filter((s) => s.id !== targetId));
             setDeleteTarget(null);
         } catch (e: any) {
             setDeleteError(e.message || 'Delete failed');
         } finally {
+            deletingRef.current = false;
             setDeleting(false);
         }
     };
@@ -379,14 +384,16 @@ export default function ScriptVersionListClient({
                         )}
                         <div className="flex gap-3">
                             <button
-                                onClick={() => { setDeleteTarget(null); setDeleteError(''); }}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDeleteTarget(null); setDeleteError(''); }}
                                 disabled={deleting}
                                 className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={handleDelete}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                                 disabled={deleting}
                                 className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
