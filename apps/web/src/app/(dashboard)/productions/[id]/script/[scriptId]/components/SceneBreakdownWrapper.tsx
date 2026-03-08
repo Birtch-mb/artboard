@@ -29,6 +29,7 @@ interface Props {
     canAssignAsset: boolean;
     token: string;
     showScriptDeletions: boolean;
+    initialWatermarkName: string | null;
 }
 
 export default function SceneBreakdownWrapper({
@@ -44,6 +45,7 @@ export default function SceneBreakdownWrapper({
     canAssignAsset,
     token,
     showScriptDeletions,
+    initialWatermarkName,
 }: Props) {
     const [showPdf, setShowPdf] = useState(false);
 
@@ -60,6 +62,7 @@ export default function SceneBreakdownWrapper({
             canAssignAsset={canAssignAsset}
             token={token}
             showScriptDeletions={showScriptDeletions}
+            initialWatermarkName={initialWatermarkName}
         />
     );
 

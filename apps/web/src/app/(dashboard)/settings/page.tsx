@@ -9,14 +9,12 @@ export default async function SettingsPage() {
         redirect('/login');
     }
 
-    let userPrefs: { watermarkName: string | null; showScriptDeletions: boolean } = {
-        watermarkName: null,
-        showScriptDeletions: true,
-    };
+    let showScriptDeletions = true;
 
     try {
         const client = createApiClient(session.accessToken);
-        userPrefs = await client.get<typeof userPrefs>('/users/me');
+        const prefs = await client.get<{ showScriptDeletions: boolean }>('/users/me');
+        showScriptDeletions = prefs.showScriptDeletions ?? true;
     } catch (err) {
         if (err instanceof ApiError && err.statusCode === 401) redirect('/login');
     }
@@ -29,8 +27,7 @@ export default async function SettingsPage() {
             </div>
 
             <UserSettingsClient
-                initialWatermarkName={userPrefs.watermarkName}
-                initialShowDeletions={userPrefs.showScriptDeletions}
+                initialShowDeletions={showScriptDeletions}
                 token={session.accessToken}
             />
         </div>

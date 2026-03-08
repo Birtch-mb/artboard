@@ -1,4 +1,4 @@
-import { IsString, MaxLength, IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, MaxLength, IsOptional, IsEnum, IsBoolean, Matches, ValidateIf } from 'class-validator';
 import { ReviewStatus } from '@prisma/client';
 
 export class UpdateScriptDto {
@@ -14,4 +14,11 @@ export class UpdateScriptDto {
     @IsBoolean()
     @IsOptional()
     wizardComplete?: boolean;
+
+    @IsOptional()
+    @ValidateIf((o) => o.watermarkName !== null)
+    @IsString()
+    @MaxLength(100)
+    @Matches(/^[^<>]*$/, { message: 'watermarkName must not contain HTML tags' })
+    watermarkName?: string | null;
 }

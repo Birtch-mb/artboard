@@ -6,7 +6,6 @@ const ME_SELECT = {
     id: true,
     email: true,
     name: true,
-    watermarkName: true,
     showScriptDeletions: true,
 } as const;
 
@@ -28,7 +27,6 @@ export class UsersService {
         if (!user) throw new NotFoundException('User not found');
 
         const data: Record<string, unknown> = {};
-        if ('watermarkName' in dto) data.watermarkName = dto.watermarkName ?? null;
         if ('showScriptDeletions' in dto) data.showScriptDeletions = dto.showScriptDeletions;
 
         return this.prisma.user.update({

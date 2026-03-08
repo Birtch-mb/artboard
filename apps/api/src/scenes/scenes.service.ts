@@ -150,17 +150,11 @@ export class ScenesService {
             .map(formatScene);
     }
 
-    async getScene(productionId: string, sceneId: string, userId: string): Promise<any> {
-        const requestingUser = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { watermarkName: true },
-        });
-        const watermarkName = requestingUser?.watermarkName ?? null;
-
+    async getScene(productionId: string, sceneId: string): Promise<any> {
         const scene = await this.prisma.scene.findFirst({
             where: { id: sceneId, productionId, deletedAt: null },
             include: {
-                script: { select: { diffFromId: true } },
+                script: { select: { diffFromId: true, watermarkName: true } },
                 set: {
                     select: {
                         id: true,
@@ -204,6 +198,7 @@ export class ScenesService {
         if (!scene) throw new NotFoundException('Scene not found');
 
         // Resolve previousRawText — one hop only, never traverse further
+        const watermarkName = scene.script?.watermarkName ?? null;
         let previousRawText: string | null = null;
         const needsDiff =
             scene.changeFlag === 'MODIFIED' || scene.changeFlag === 'RENUMBERED';

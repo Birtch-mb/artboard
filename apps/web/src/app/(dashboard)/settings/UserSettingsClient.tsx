@@ -3,15 +3,12 @@
 import { useRef, useState, useCallback } from 'react';
 
 export default function UserSettingsClient({
-    initialWatermarkName,
     initialShowDeletions,
     token,
 }: {
-    initialWatermarkName: string | null;
     initialShowDeletions: boolean;
     token: string;
 }) {
-    const [watermarkName, setWatermarkName] = useState(initialWatermarkName ?? '');
     const [showDeletions, setShowDeletions] = useState(initialShowDeletions);
     const [feedback, setFeedback] = useState('');
 
@@ -36,11 +33,6 @@ export default function UserSettingsClient({
         [token],
     );
 
-    const handleWatermarkChange = (value: string) => {
-        setWatermarkName(value);
-        patch({ watermarkName: value || null }, 'Watermark filter updated');
-    };
-
     const handleDeletionsChange = (next: boolean) => {
         setShowDeletions(next);
         patch({ showScriptDeletions: next }, 'Preference saved');
@@ -48,25 +40,6 @@ export default function UserSettingsClient({
 
     return (
         <div className="flex flex-col gap-8 max-w-lg">
-            {/* Watermark filter */}
-            <div>
-                <label className="block text-sm font-medium text-neutral-200 mb-1">
-                    Watermark filter
-                </label>
-                <p className="text-xs text-neutral-500 mb-3">
-                    Your name is often embedded in script PDFs as a watermark. Enter it here to have it
-                    automatically stripped from scene text.
-                </p>
-                <input
-                    type="text"
-                    value={watermarkName}
-                    onChange={(e) => handleWatermarkChange(e.target.value)}
-                    placeholder="e.g. Jane Smith"
-                    maxLength={100}
-                    className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary/40"
-                />
-            </div>
-
             {/* Script deletions toggle */}
             <div>
                 <label className="block text-sm font-medium text-neutral-200 mb-1">

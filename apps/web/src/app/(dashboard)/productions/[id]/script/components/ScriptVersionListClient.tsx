@@ -405,8 +405,10 @@ export default function ScriptVersionListClient({
                             Watermark filter
                         </h2>
                         <p className="text-sm text-neutral-400 mb-5">
-                            Script PDFs often contain your name as a watermark. Add your name to your
-                            profile so it&apos;s automatically filtered out of scene text.
+                            Script PDFs often contain your name as a watermark. You can filter it
+                            from scene text using the{' '}
+                            <strong className="text-neutral-200">Watermark filter</strong> input in
+                            the script breakdown toolbar.
                         </p>
                         <div className="flex gap-3">
                             <button
@@ -415,19 +417,9 @@ export default function ScriptVersionListClient({
                                     setWatermarkCallout(null);
                                     watermarkCallout.navigate();
                                 }}
-                                className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-700 transition-colors"
-                            >
-                                Dismiss
-                            </button>
-                            <button
-                                onClick={() => {
-                                    localStorage.setItem('watermark-callout-dismissed', 'true');
-                                    setWatermarkCallout(null);
-                                    router.push('/settings');
-                                }}
                                 className="flex-1 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90"
                             >
-                                Go to Settings
+                                Got it
                             </button>
                         </div>
                     </div>

@@ -87,6 +87,7 @@ export default async function SceneBreakdownPage({
                 canAssignAsset={canAssignAsset}
                 token={session.accessToken}
                 showScriptDeletions={showScriptDeletions}
+                initialWatermarkName={script?.watermarkName ?? null}
             />
         </div>
     );

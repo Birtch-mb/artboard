@@ -20,8 +20,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ProductionMemberGuard } from '../common/guards/production-member.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Role, JwtPayload } from '../common/types';
+import { Role } from '../common/types';
 
 @Controller('productions/:productionId')
 @UseGuards(JwtAuthGuard, ProductionMemberGuard, RolesGuard)
@@ -56,9 +55,8 @@ export class ScenesController {
     getScene(
         @Param('productionId') productionId: string,
         @Param('sceneId') sceneId: string,
-        @CurrentUser() user: JwtPayload,
     ) {
-        return this.scenesService.getScene(productionId, sceneId, user.sub);
+        return this.scenesService.getScene(productionId, sceneId);
     }
 
     @Patch('scenes/:sceneId')

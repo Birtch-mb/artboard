@@ -12,7 +12,6 @@ model User {
   email               String            @unique
   name                String
   passwordHash        String?
-  watermarkName       String?
   showScriptDeletions Boolean           @default(true)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -356,6 +355,7 @@ model Script {
   reviewStatus   ReviewStatus  @default(PENDING_REVIEW)
   wizardComplete Boolean       @default(false)
   diffFromId     String?
+  watermarkName  String?
 
   production    Production    @relation(fields: [productionId], references: [id])
   diffFrom      Script?       @relation("ScriptDiff", fields: [diffFromId], references: [id])
