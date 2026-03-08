@@ -25,11 +25,12 @@ export default async function SceneBreakdownPage({
     let canEdit = false;
     let canReview = false;
     let canAssignAsset = false;
+    let showScriptDeletions = true;
 
     try {
         const client = createApiClient(session.accessToken);
 
-        const [production, scriptData, scenesData, setsData, assetsData, charactersData, urlData] =
+        const [production, scriptData, scenesData, setsData, assetsData, charactersData, urlData, userPrefs] =
             await Promise.all([
                 client.get<any>(`/productions/${params.id}`),
                 client.get<any>(`/productions/${params.id}/scripts/${params.scriptId}`),
@@ -40,6 +41,7 @@ export default async function SceneBreakdownPage({
                 client.get<{ url: string }>(
                     `/productions/${params.id}/scripts/${params.scriptId}/url`,
                 ),
+                client.get<any>('/users/me'),
             ]);
 
         const myMember = production.members.find((m: any) => m.user.id === session.user?.id);
@@ -55,6 +57,7 @@ export default async function SceneBreakdownPage({
         assets = assetsData.filter((a: any) => !a.deletedAt);
         characters = charactersData;
         pdfUrl = urlData.url;
+        showScriptDeletions = userPrefs.showScriptDeletions ?? true;
     } catch (err) {
         if (err instanceof ApiError && err.statusCode === 401) redirect('/login');
         notFound();
@@ -83,6 +86,7 @@ export default async function SceneBreakdownPage({
                 canReview={canReview}
                 canAssignAsset={canAssignAsset}
                 token={session.accessToken}
+                showScriptDeletions={showScriptDeletions}
             />
         </div>
     );

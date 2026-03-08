@@ -8,15 +8,17 @@ datasource db {
 }
 
 model User {
-  id            String            @id @default(uuid())
-  email         String            @unique
-  name          String
-  passwordHash  String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  memberships   ProductionMember[]
-  activityLogs  ActivityLog[]     @relation("ActivityActor")
-  notifications Notification[]
+  id                  String            @id @default(uuid())
+  email               String            @unique
+  name                String
+  passwordHash        String?
+  watermarkName       String?
+  showScriptDeletions Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  memberships         ProductionMember[]
+  activityLogs        ActivityLog[]     @relation("ActivityActor")
+  notifications       Notification[]
 }
 
 model Production {

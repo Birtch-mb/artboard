@@ -14,6 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           Artboard
         </Link>
         <div className="flex items-center gap-4">
+          <Link href="/settings" className="text-sm text-gray-400 hover:text-white transition-colors">
+            Settings
+          </Link>
           <span className="text-sm text-gray-400">{session.user?.name}</span>
           <form
             action={async () => {

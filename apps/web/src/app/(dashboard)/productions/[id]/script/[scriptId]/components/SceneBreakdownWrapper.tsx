@@ -28,6 +28,7 @@ interface Props {
     canReview: boolean;
     canAssignAsset: boolean;
     token: string;
+    showScriptDeletions: boolean;
 }
 
 export default function SceneBreakdownWrapper({
@@ -42,6 +43,7 @@ export default function SceneBreakdownWrapper({
     canReview,
     canAssignAsset,
     token,
+    showScriptDeletions,
 }: Props) {
     const [showPdf, setShowPdf] = useState(false);
 
@@ -57,6 +59,7 @@ export default function SceneBreakdownWrapper({
             canReview={canReview}
             canAssignAsset={canAssignAsset}
             token={token}
+            showScriptDeletions={showScriptDeletions}
         />
     );
 

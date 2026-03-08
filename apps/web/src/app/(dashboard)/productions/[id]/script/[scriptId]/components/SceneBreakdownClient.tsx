@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import SceneDiffText from './SceneDiffText';
 import {
     Plus,
     ChevronDown,
@@ -585,6 +586,7 @@ function SceneDetail({
     canReview,
     canAssignAsset,
     token,
+    showDeletions,
     onUpdate,
     onSetCreated,
 }: {
@@ -597,6 +599,7 @@ function SceneDetail({
     canReview: boolean;
     canAssignAsset: boolean;
     token: string;
+    showDeletions: boolean;
     onUpdate: (scene: Scene) => void;
     onSetCreated: (set: any) => void;
 }) {
@@ -778,7 +781,15 @@ function SceneDetail({
                 <div>
                     <p className="text-xs text-neutral-500 mb-2 uppercase tracking-wider">Scene Text</p>
                     <pre className="whitespace-pre-wrap font-courier-prime font-bold text-sm text-neutral-900 bg-white rounded-lg border border-neutral-300 px-6 py-4 max-h-64 overflow-y-auto leading-relaxed shadow-sm">
-                        {fullScene.sceneText}
+                        {(fullScene.changeFlag === 'NONE' || fullScene.changeFlag === 'OMITTED') ? (
+                            fullScene.sceneText
+                        ) : (
+                            <SceneDiffText
+                                newText={fullScene.sceneText}
+                                previousText={fullScene.previousRawText ?? null}
+                                showDeletions={showDeletions}
+                            />
+                        )}
                     </pre>
                 </div>
             )}
@@ -1013,6 +1024,7 @@ function SceneRow({
     canReview,
     canAssignAsset,
     token,
+    showDeletions,
     onUpdate,
     onSplit,
     onSetCreated,
@@ -1029,6 +1041,7 @@ function SceneRow({
     canReview: boolean;
     canAssignAsset: boolean;
     token: string;
+    showDeletions: boolean;
     onUpdate: (scene: Scene) => void;
     onSplit: (scene: Scene) => void;
     onSetCreated: (set: any) => void;
@@ -1125,6 +1138,7 @@ function SceneRow({
                         canReview={canReview}
                         canAssignAsset={canAssignAsset}
                         token={token}
+                        showDeletions={showDeletions}
                         onUpdate={onUpdate}
                         onSetCreated={onSetCreated}
                     />
@@ -1162,6 +1176,7 @@ export default function SceneBreakdownClient({
     canReview,
     canAssignAsset,
     token,
+    showScriptDeletions,
 }: {
     initialScenes: Scene[];
     scriptId: string;
@@ -1173,9 +1188,31 @@ export default function SceneBreakdownClient({
     canReview: boolean;
     canAssignAsset: boolean;
     token: string;
+    showScriptDeletions: boolean;
 }) {
     const [scenes, setScenes] = useState<Scene[]>(initialScenes);
     const [sets, setSets] = useState<any[]>(initialSets);
+
+    // Deletions toggle — initialised from user preference, debounced-synced to API
+    const [showDeletions, setShowDeletions] = useState(showScriptDeletions);
+    const toggleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleToggleDeletions = useCallback(
+        (next: boolean) => {
+            setShowDeletions(next);
+            if (toggleDebounceRef.current) clearTimeout(toggleDebounceRef.current);
+            toggleDebounceRef.current = setTimeout(() => {
+                fetch('/api/proxy/users/me', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ showScriptDeletions: next }),
+                }).catch(() => { });
+            }, 600);
+        },
+        [token],
+    );
 
     // Auto-expand the first scene on load
     const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
@@ -1302,15 +1339,37 @@ export default function SceneBreakdownClient({
                     </div>
                 </div>
 
-                {canEdit && (
+                <div className="flex items-center gap-3">
+                    {/* Show deletions toggle */}
                     <button
-                        onClick={() => setShowAddPanel(true)}
-                        className="flex items-center gap-2 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90"
+                        onClick={() => handleToggleDeletions(!showDeletions)}
+                        className="flex items-center gap-2"
+                        title={showDeletions ? 'Hide deletions' : 'Show deletions'}
                     >
-                        <Plus className="h-4 w-4" />
-                        Add Scene
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400 select-none">
+                            Show deletions
+                        </span>
+                        <span
+                            className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200"
+                            style={{ backgroundColor: showDeletions ? '#ef4444' : '#1e293b' }}
+                        >
+                            <span
+                                className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200"
+                                style={{ transform: `translateX(${showDeletions ? '18px' : '2px'})`, marginTop: '2px' }}
+                            />
+                        </span>
                     </button>
-                )}
+
+                    {canEdit && (
+                        <button
+                            onClick={() => setShowAddPanel(true)}
+                            className="flex items-center gap-2 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Add Scene
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Scene table */}
@@ -1378,6 +1437,7 @@ export default function SceneBreakdownClient({
                                 onSplit={setSplitScene}
                                 onSetCreated={handleSetCreated}
                                 isSubScene={!!scene.parentSceneId}
+                                showDeletions={showDeletions}
                             />
                         ))}
                     </div>

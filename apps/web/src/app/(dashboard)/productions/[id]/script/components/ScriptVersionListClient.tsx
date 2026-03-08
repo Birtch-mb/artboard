@@ -44,6 +44,9 @@ export default function ScriptVersionListClient({
     const [uploadError, setUploadError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Watermark callout state — shown after first upload if not dismissed
+    const [watermarkCallout, setWatermarkCallout] = useState<{ navigate: () => void } | null>(null);
+
     // Delete state
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -107,11 +110,26 @@ export default function ScriptVersionListClient({
             setShowUploadModal(false);
             setVersionLabel('');
             setSelectedFile(null);
-            // First upload → launch wizard; subsequent uploads → breakdown view
-            if (newScript.isFirstScript && !newScript.wizardComplete) {
-                router.push(`/productions/${productionId}/script/${newScript.id}/wizard`);
+            setScripts((prev) => [newScript, ...prev]);
+
+            const navigateFn = () => {
+                // First upload → launch wizard; subsequent uploads → breakdown view
+                if (newScript.isFirstScript && !newScript.wizardComplete) {
+                    router.push(`/productions/${productionId}/script/${newScript.id}/wizard`);
+                } else {
+                    router.push(`/productions/${productionId}/script/${newScript.id}`);
+                }
+            };
+
+            // Show watermark callout on first upload if not already dismissed
+            if (
+                newScript.isFirstScript &&
+                typeof localStorage !== 'undefined' &&
+                localStorage.getItem('watermark-callout-dismissed') !== 'true'
+            ) {
+                setWatermarkCallout({ navigate: navigateFn });
             } else {
-                router.push(`/productions/${productionId}/script/${newScript.id}`);
+                navigateFn();
             }
         } catch (e: any) {
             setUploadError(e.message || 'Upload failed');
@@ -373,6 +391,43 @@ export default function ScriptVersionListClient({
                                 className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {deleting ? 'Deleting…' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Watermark callout — shown after first upload, until dismissed */}
+            {watermarkCallout && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-sm mx-4 rounded-xl border border-neutral-700 bg-neutral-900 p-6 shadow-2xl">
+                        <h2 className="text-base font-semibold text-white mb-2">
+                            Watermark filter
+                        </h2>
+                        <p className="text-sm text-neutral-400 mb-5">
+                            Script PDFs often contain your name as a watermark. Add your name to your
+                            profile so it&apos;s automatically filtered out of scene text.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    localStorage.setItem('watermark-callout-dismissed', 'true');
+                                    setWatermarkCallout(null);
+                                    watermarkCallout.navigate();
+                                }}
+                                className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-700 transition-colors"
+                            >
+                                Dismiss
+                            </button>
+                            <button
+                                onClick={() => {
+                                    localStorage.setItem('watermark-callout-dismissed', 'true');
+                                    setWatermarkCallout(null);
+                                    router.push('/settings');
+                                }}
+                                className="flex-1 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90"
+                            >
+                                Go to Settings
                             </button>
                         </div>
                     </div>

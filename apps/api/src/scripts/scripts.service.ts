@@ -75,7 +75,12 @@ export class ScriptsService {
             const prevScenesMap = new Map(prevScenes.map(s => [s.sceneNumber, s]));
             const handledPrevSceneNumbers = new Set<string>();
 
-            // Determine flags and create the new parent scenes
+            // --- Batch all scene data before writing to DB ---
+            const allSceneData: any[] = [];
+            const allCharacterJoins: { sceneId: string; characterId: string }[] = [];
+            const allAssetJoins: { sceneId: string; assetId: string }[] = [];
+
+            // Build parent scenes from parsed data
             for (const s of parsedScenes) {
                 const prevNode = prevScenesMap.get(s.sceneNumber);
                 handledPrevSceneNumbers.add(s.sceneNumber);
@@ -89,128 +94,109 @@ export class ScriptsService {
                     flag = 'MODIFIED';
                 }
 
-                // Create the parent scene inline so we can get its ID to copy joins
-                const newScene = await this.prisma.scene.create({
-                    data: {
-                        scriptId: script.id,
-                        productionId,
-                        sceneNumber: s.sceneNumber,
-                        intExt: s.intExt as any,
-                        scriptedLocationName: s.scriptedLocationName,
-                        timeOfDay: s.timeOfDay as any,
-                        sceneText: s.sceneText || null,
-                        changeFlag: flag as any,
-                        setId: prevNode?.setId ?? null,
-                        synopsis: prevNode?.synopsis ?? null,
-                        notes: prevNode?.notes ?? null,
-                        pageCount: prevNode?.pageCount ?? null,
-                        wizardStatus: prevNode ? prevNode.wizardStatus : 'PENDING',
-                    }
+                const newSceneId = uuidv4();
+                allSceneData.push({
+                    id: newSceneId,
+                    scriptId: script.id,
+                    productionId,
+                    sceneNumber: s.sceneNumber,
+                    intExt: s.intExt as any,
+                    scriptedLocationName: s.scriptedLocationName,
+                    timeOfDay: s.timeOfDay as any,
+                    sceneText: s.sceneText || null,
+                    changeFlag: flag as any,
+                    setId: prevNode?.setId ?? null,
+                    synopsis: prevNode?.synopsis ?? null,
+                    notes: prevNode?.notes ?? null,
+                    pageCount: prevNode?.pageCount ?? null,
+                    wizardStatus: prevNode ? prevNode.wizardStatus : 'PENDING',
                 });
 
-                // Copy over characters and assets for the parent scene
+                // Collect character and asset joins from previous version
                 if (prevNode) {
-                    if (prevNode.characters.length > 0) {
-                        await this.prisma.sceneCharacter.createMany({
-                            data: prevNode.characters.map((sc: any) => ({
-                                sceneId: newScene.id,
-                                characterId: sc.characterId
-                            }))
-                        });
+                    for (const sc of prevNode.characters) {
+                        allCharacterJoins.push({ sceneId: newSceneId, characterId: sc.characterId });
                     }
-                    if (prevNode.assetAssignments.length > 0) {
-                        await this.prisma.sceneAsset.createMany({
-                            data: prevNode.assetAssignments.map((sa: any) => ({
-                                sceneId: newScene.id,
-                                assetId: sa.assetId
-                            }))
-                        });
+                    for (const sa of prevNode.assetAssignments) {
+                        allAssetJoins.push({ sceneId: newSceneId, assetId: sa.assetId });
                     }
 
-                    // Copy over manually split sub-scenes (A/B/C)
+                    // Collect manually split sub-scenes (A/B/C)
                     if (prevNode.children && prevNode.children.length > 0) {
                         for (const child of prevNode.children) {
-                            const newChild = await this.prisma.scene.create({
-                                data: {
-                                    scriptId: script.id,
-                                    productionId,
-                                    sceneNumber: child.sceneNumber,
-                                    parentSceneId: newScene.id,
-                                    intExt: child.intExt,
-                                    scriptedLocationName: child.scriptedLocationName,
-                                    timeOfDay: child.timeOfDay,
-                                    sceneText: child.sceneText,
-                                    changeFlag: 'NONE', // Custom sub-scenes don't trigger diffs directly from parser
-                                    setId: child.setId,
-                                    synopsis: child.synopsis,
-                                    notes: child.notes,
-                                    pageCount: child.pageCount,
-                                    wizardStatus: child.wizardStatus,
-                                }
+                            const newChildId = uuidv4();
+                            allSceneData.push({
+                                id: newChildId,
+                                scriptId: script.id,
+                                productionId,
+                                sceneNumber: child.sceneNumber,
+                                parentSceneId: newSceneId,
+                                intExt: child.intExt,
+                                scriptedLocationName: child.scriptedLocationName,
+                                timeOfDay: child.timeOfDay,
+                                sceneText: child.sceneText,
+                                changeFlag: 'NONE',
+                                setId: child.setId,
+                                synopsis: child.synopsis,
+                                notes: child.notes,
+                                pageCount: child.pageCount,
+                                wizardStatus: child.wizardStatus,
                             });
 
-                            if (child.characters.length > 0) {
-                                await this.prisma.sceneCharacter.createMany({
-                                    data: child.characters.map((sc: any) => ({
-                                        sceneId: newChild.id,
-                                        characterId: sc.characterId
-                                    }))
-                                });
+                            for (const sc of child.characters) {
+                                allCharacterJoins.push({ sceneId: newChildId, characterId: sc.characterId });
                             }
-                            if (child.assetAssignments.length > 0) {
-                                await this.prisma.sceneAsset.createMany({
-                                    data: child.assetAssignments.map((sa: any) => ({
-                                        sceneId: newChild.id,
-                                        assetId: sa.assetId
-                                    }))
-                                });
+                            for (const sa of child.assetAssignments) {
+                                allAssetJoins.push({ sceneId: newChildId, assetId: sa.assetId });
                             }
                         }
                     }
                 }
             }
 
-            // Identify OMITTED scenes (existed in prev version, not in new version)
+            // Build OMITTED scenes (existed in prev version, not in new version)
             const omittedScenes = prevScenes.filter(s => !handledPrevSceneNumbers.has(s.sceneNumber));
             for (const prevNode of omittedScenes) {
-                // Determine order logically - for now we just append them or they sort naturally by number
-                const newOmittedScene = await this.prisma.scene.create({
-                    data: {
-                        scriptId: script.id,
-                        productionId,
-                        sceneNumber: prevNode.sceneNumber,
-                        intExt: prevNode.intExt,
-                        scriptedLocationName: prevNode.scriptedLocationName,
-                        timeOfDay: prevNode.timeOfDay,
-                        sceneText: prevNode.sceneText,
-                        changeFlag: 'OMITTED',
-                        setId: prevNode.setId,
-                        synopsis: prevNode.synopsis,
-                        notes: prevNode.notes,
-                        pageCount: prevNode.pageCount,
-                        wizardStatus: prevNode.wizardStatus,
-                    }
+                const newOmittedId = uuidv4();
+                allSceneData.push({
+                    id: newOmittedId,
+                    scriptId: script.id,
+                    productionId,
+                    sceneNumber: prevNode.sceneNumber,
+                    intExt: prevNode.intExt,
+                    scriptedLocationName: prevNode.scriptedLocationName,
+                    timeOfDay: prevNode.timeOfDay,
+                    sceneText: prevNode.sceneText,
+                    changeFlag: 'OMITTED',
+                    setId: prevNode.setId,
+                    synopsis: prevNode.synopsis,
+                    notes: prevNode.notes,
+                    pageCount: prevNode.pageCount,
+                    wizardStatus: prevNode.wizardStatus,
                 });
 
-                if (prevNode.characters.length > 0) {
-                    await this.prisma.sceneCharacter.createMany({
-                        data: prevNode.characters.map((sc: any) => ({
-                            sceneId: newOmittedScene.id,
-                            characterId: sc.characterId
-                        }))
-                    });
+                for (const sc of prevNode.characters) {
+                    allCharacterJoins.push({ sceneId: newOmittedId, characterId: sc.characterId });
                 }
-                if (prevNode.assetAssignments.length > 0) {
-                    await this.prisma.sceneAsset.createMany({
-                        data: prevNode.assetAssignments.map((sa: any) => ({
-                            sceneId: newOmittedScene.id,
-                            assetId: sa.assetId
-                        }))
-                    });
+                for (const sa of prevNode.assetAssignments) {
+                    allAssetJoins.push({ sceneId: newOmittedId, assetId: sa.assetId });
                 }
             }
 
-            // Character auto-detection disabled — characters are managed manually.
+            // --- Write everything in a single transaction with 3 bulk inserts ---
+            await this.prisma.$transaction([
+                this.prisma.scene.createMany({ data: allSceneData }),
+                ...(allCharacterJoins.length > 0
+                    ? [this.prisma.sceneCharacter.createMany({ data: allCharacterJoins })]
+                    : []),
+                ...(allAssetJoins.length > 0
+                    ? [this.prisma.sceneAsset.createMany({ data: allAssetJoins })]
+                    : []),
+            ]);
+
+            this.logger.log(
+                `Created ${allSceneData.length} scenes, ${allCharacterJoins.length} character joins, ${allAssetJoins.length} asset joins in batch`,
+            );
         } else {
             this.logger.warn(
                 `No scenes parsed from "${versionLabel}" — PDF may be a scan or non-standard format`,

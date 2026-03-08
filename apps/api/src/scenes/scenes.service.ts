@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSceneDto } from './dto/create-scene.dto';
 import { UpdateSceneDto } from './dto/update-scene.dto';
 import { SplitSceneDto } from './dto/split-scene.dto';
+import { stripWatermark } from '../common/utils/strip-watermark';
 
 function parseSceneNumber(num: string): { prefix: number; suffix: string } {
     const match = num.match(/^(\d+)([A-Za-z]*)$/);
@@ -149,10 +150,17 @@ export class ScenesService {
             .map(formatScene);
     }
 
-    async getScene(productionId: string, sceneId: string): Promise<any> {
+    async getScene(productionId: string, sceneId: string, userId: string): Promise<any> {
+        const requestingUser = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { watermarkName: true },
+        });
+        const watermarkName = requestingUser?.watermarkName ?? null;
+
         const scene = await this.prisma.scene.findFirst({
             where: { id: sceneId, productionId, deletedAt: null },
             include: {
+                script: { select: { diffFromId: true } },
                 set: {
                     select: {
                         id: true,
@@ -195,9 +203,28 @@ export class ScenesService {
 
         if (!scene) throw new NotFoundException('Scene not found');
 
+        // Resolve previousRawText — one hop only, never traverse further
+        let previousRawText: string | null = null;
+        const needsDiff =
+            scene.changeFlag === 'MODIFIED' || scene.changeFlag === 'RENUMBERED';
+        if (needsDiff && scene.script.diffFromId) {
+            const prevScene = await this.prisma.scene.findFirst({
+                where: {
+                    scriptId: scene.script.diffFromId,
+                    sceneNumber: scene.sceneNumber,
+                    deletedAt: null,
+                },
+                select: { sceneText: true },
+            });
+            if (prevScene?.sceneText) {
+                previousRawText = stripWatermark(prevScene.sceneText, watermarkName);
+            }
+        }
+
         return {
             ...formatScene(scene),
-            sceneText: scene.sceneText ?? null,
+            sceneText: stripWatermark(scene.sceneText ?? null, watermarkName),
+            previousRawText,
             assets: scene.assetAssignments.map((a) => a.asset),
             characters: scene.characters.map((sc) => sc.character),
         };

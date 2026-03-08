@@ -16,11 +16,13 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { GanttModule } from './gantt/gantt.module';
 import { ActivityModule } from './activity/activity.module';
 import { BudgetModule } from './budget/budget.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    UsersModule,
     ProductionsModule,
     MembersModule,
     VisibilityModule,

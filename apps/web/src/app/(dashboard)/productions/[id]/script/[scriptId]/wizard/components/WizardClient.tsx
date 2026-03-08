@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import SceneDiffText from '../../components/SceneDiffText';
 import { useRouter } from 'next/navigation';
 import {
     ChevronLeft,
@@ -27,6 +28,7 @@ interface Scene {
     synopsis: string | null;
     notes: string | null;
     sceneText: string | null;
+    changeFlag?: string;
     wizardStatus: 'PENDING' | 'COMPLETE' | 'SKIPPED';
     set: { id: string; name: string } | null;
 }
@@ -567,9 +569,10 @@ export default function WizardClient({
     const [notes, setNotes] = useState('');
     const [setId, setSetId] = useState('');
 
-    // Per-scene assets/characters (loaded from API)
+    // Per-scene assets/characters/diff (loaded from API)
     const [sceneAssets, setSceneAssets] = useState<Asset[]>([]);
     const [sceneCharacters, setSceneCharacters] = useState<Character[]>([]);
+    const [previousRawText, setPreviousRawText] = useState<string | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Modals
@@ -588,6 +591,7 @@ export default function WizardClient({
         setSetId(currentScene.set?.id ?? '');
         setSceneAssets([]);
         setSceneCharacters([]);
+        setPreviousRawText(null);
         setShowCreateChar(false);
         setShowCreateAsset(false);
 
@@ -600,6 +604,7 @@ export default function WizardClient({
             .then((data) => {
                 setSceneAssets(data.assets ?? []);
                 setSceneCharacters(data.characters ?? []);
+                setPreviousRawText(data.previousRawText ?? null);
                 // Hydrate sceneText — not included in list endpoint, only in detail
                 if (data.sceneText != null) {
                     setScenes((prev) =>
@@ -880,7 +885,15 @@ export default function WizardClient({
                         <div className="flex-1 overflow-y-auto bg-white px-8 py-6">
                             {currentScene?.sceneText ? (
                                 <pre className="whitespace-pre-wrap font-courier-prime font-bold text-sm text-neutral-900 leading-relaxed">
-                                    {currentScene.sceneText}
+                                    {currentScene.changeFlag && currentScene.changeFlag !== 'NONE' && currentScene.changeFlag !== 'OMITTED' ? (
+                                        <SceneDiffText
+                                            newText={currentScene.sceneText}
+                                            previousText={previousRawText}
+                                            showDeletions={true}
+                                        />
+                                    ) : (
+                                        currentScene.sceneText
+                                    )}
                                 </pre>
                             ) : (
                                 <p className="text-sm text-neutral-600 italic">
