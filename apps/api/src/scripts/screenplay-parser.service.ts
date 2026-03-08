@@ -24,14 +24,21 @@ export interface ParsedScene {
 
 // Matches standard US screenplay scene headings:
 //   [optional num]  INT./EXT./INT./EXT.  LOCATION  -  TIME OF DAY  [optional num]
+// Allows up to 3 letters after the scene number (e.g. 50A, 50AB, 50ABC)
 const HEADING_RE =
-    /^(?:\d+[A-Z]?\s+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+(.+?)\s*[-–—]\s*(.+?)(?:\s+\d+[A-Z]?\.?\s*)?$/i;
+    /^(?:\d+[A-Z]{0,3}\s+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+(.+?)\s*[-–—]\s*(.+?)(?:\s+\d+[A-Z]{0,3}\.?\s*)?$/i;
 
 // Lines that are only a page number, CONTINUED, or script header/footer noise
 const NOISE_RE = /^(\d+\.?|CONTINUED:?|CONT'D\.?|FADE IN:|FADE OUT\.|THE END\.?)$/i;
 
 // ALL-CAPS transition/direction lines that are not character names
 const TRANSITION_RE = /^(CUT TO:|SMASH CUT|MATCH CUT|HARD CUT|JUMP CUT|BACK TO:|INTERCUT|INTERCUT WITH|FLASHBACK|END FLASHBACK|FLASH CUT|FREEZE FRAME|TIME CUT|DISSOLVE TO:|IRIS IN:|IRIS OUT:|WIPE TO:|SUPER:|TITLE:|INTERTITLE:|OMITTED|CONTINUED)\.?:?$/i;
+
+// A standalone scene-number token on its own line (e.g. "50A", "50A.")
+// Pure digit lines ("50") are already removed by NOISE_RE above.
+// These appear in professional PDFs where the number is printed in the margin
+// column separately from the heading text.
+const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{1,3}\.?)$/i;
 
 const TIME_OF_DAY_MAP: Record<string, TimeOfDay> = {
     DAY: TimeOfDay.DAY,
@@ -83,6 +90,11 @@ export class ScreenplayParserService {
         let currentHeading: Omit<ParsedScene, 'sceneText' | 'characters'> | null = null;
         let bodyLines: string[] = [];
 
+        // Tracks a scene number seen on its own line (margin-column format in many PDFs).
+        // When the very next heading has no inline number prefix, we use this instead
+        // of the fallback counter. Inline numbers on the heading line always take priority.
+        let pendingSceneNum: string | null = null;
+
         const flushScene = () => {
             if (!currentHeading) return;
             scenes.push({
@@ -97,7 +109,14 @@ export class ScreenplayParserService {
             if (this.isSceneHeading(line)) {
                 flushScene();
                 fallbackNum++;
-                currentHeading = this.parseHeading(line, fallbackNum);
+                currentHeading = this.parseHeading(line, fallbackNum, pendingSceneNum);
+                pendingSceneNum = null; // consumed
+            } else if (SCENE_NUM_ONLY_RE.test(line)) {
+                // Margin scene-number token (e.g. "50A").
+                // Could be the left-margin number before the next heading, or the
+                // right-margin duplicate after the previous heading. Either way,
+                // store it as pending and do NOT add it to the scene body text.
+                pendingSceneNum = line.replace(/\.$/, '').toUpperCase();
             } else if (currentHeading) {
                 bodyLines.push(line);
             }
@@ -122,11 +141,12 @@ export class ScreenplayParserService {
     private parseHeading(
         line: string,
         fallbackNum: number,
+        pendingSceneNum: string | null,
     ): Omit<ParsedScene, 'sceneText' | 'characters'> {
         const match = line.match(HEADING_RE);
         if (!match) {
             return {
-                sceneNumber: String(fallbackNum),
+                sceneNumber: pendingSceneNum ?? String(fallbackNum),
                 intExt: IntExt.INT,
                 scriptedLocationName: line.slice(0, 500),
                 timeOfDay: TimeOfDay.DAY,
@@ -135,17 +155,20 @@ export class ScreenplayParserService {
 
         const [, intExtRaw, locationRaw, timeRaw] = match;
 
-        // Try to extract a leading scene number from the original line
-        const numMatch = line.match(/^(\d+[A-Z]?)\s+/i);
-        const sceneNumber = numMatch
-            ? numMatch[1].replace(/\.$/, '')
-            : String(fallbackNum);
+        // Priority order for scene number:
+        //   1. Inline prefix on this heading line (e.g. "50A INT. LIVING ROOM - NIGHT")
+        //   2. Pending margin-column token from the line immediately before this heading
+        //   3. Auto-incrementing fallback counter
+        const inlineMatch = line.match(/^(\d+[A-Z]{0,3})\s+/i);
+        const sceneNumber = inlineMatch
+            ? inlineMatch[1].replace(/\.$/, '').toUpperCase()
+            : pendingSceneNum ?? String(fallbackNum);
 
-        // Clean time of day: strip trailing scene-number noise
+        // Clean time of day: strip trailing scene-number noise (e.g. "NIGHT 50A")
         const cleanTime = timeRaw
             .trim()
             .toUpperCase()
-            .replace(/\s*\d+[A-Z]?\.?\s*$/, '')
+            .replace(/\s*\d+[A-Z]{0,3}\.?\s*$/, '')
             .trim();
 
         return {
