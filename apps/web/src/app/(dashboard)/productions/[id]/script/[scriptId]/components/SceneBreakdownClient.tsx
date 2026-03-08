@@ -1195,26 +1195,31 @@ export default function SceneBreakdownClient({
     const [scenes, setScenes] = useState<Scene[]>(initialScenes);
     const [sets, setSets] = useState<any[]>(initialSets);
 
-    // Watermark filter — per-script, debounced-synced to API (AD/PD only)
+    // Watermark filter — per-script, explicit save (AD/PD only)
     const [watermarkName, setWatermarkName] = useState(initialWatermarkName ?? '');
-    const watermarkDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleWatermarkChange = useCallback(
-        (value: string) => {
-            setWatermarkName(value);
-            if (watermarkDebounceRef.current) clearTimeout(watermarkDebounceRef.current);
-            watermarkDebounceRef.current = setTimeout(() => {
-                fetch(`/api/proxy/productions/${productionId}/scripts/${scriptId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ watermarkName: value || null }),
-                }).catch(() => { });
-            }, 600);
-        },
-        [productionId, scriptId, token],
-    );
+    const [savedWatermarkName, setSavedWatermarkName] = useState(initialWatermarkName ?? '');
+    const [watermarkSaving, setWatermarkSaving] = useState(false);
+    const handleWatermarkSave = useCallback(async () => {
+        if (watermarkSaving) return;
+        setWatermarkSaving(true);
+        try {
+            const res = await fetch(`/api/proxy/productions/${productionId}/scripts/${scriptId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ watermarkName: watermarkName.trim() || null }),
+            });
+            if (res.ok) {
+                setSavedWatermarkName(watermarkName.trim());
+                // Reload so scene texts are re-fetched with the new filter applied
+                window.location.reload();
+            }
+        } finally {
+            setWatermarkSaving(false);
+        }
+    }, [productionId, scriptId, token, watermarkName, watermarkSaving]);
 
     // Deletions toggle — initialised from user preference, debounced-synced to API
     const [showDeletions, setShowDeletions] = useState(showScriptDeletions);
@@ -1365,15 +1370,27 @@ export default function SceneBreakdownClient({
                 <div className="flex items-center gap-3">
                     {/* Watermark filter — per-script, AD/PD only */}
                     {canEdit && (
-                        <input
-                            type="text"
-                            value={watermarkName}
-                            onChange={(e) => handleWatermarkChange(e.target.value)}
-                            placeholder="Watermark filter…"
-                            maxLength={100}
-                            title="Filter your name from scene text (script-specific)"
-                            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-300 placeholder-neutral-600 focus:border-neutral-600 focus:outline-none w-44"
-                        />
+                        <form
+                            onSubmit={(e) => { e.preventDefault(); handleWatermarkSave(); }}
+                            className="flex items-center gap-1.5"
+                        >
+                            <input
+                                type="text"
+                                value={watermarkName}
+                                onChange={(e) => setWatermarkName(e.target.value)}
+                                placeholder="Watermark filter…"
+                                maxLength={100}
+                                title="Filter a name from scene text (script-specific)"
+                                className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-300 placeholder-neutral-600 focus:border-neutral-600 focus:outline-none w-44"
+                            />
+                            <button
+                                type="submit"
+                                disabled={watermarkName.trim() === savedWatermarkName || watermarkSaving}
+                                className="rounded-md border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                            >
+                                {watermarkSaving ? 'Saving…' : 'Save'}
+                            </button>
+                        </form>
                     )}
 
                     {/* Show deletions toggle */}
