@@ -10,20 +10,48 @@ import {
     ZoomIn,
     ZoomOut,
     Loader2,
+    RefreshCw,
 } from 'lucide-react';
 
 // pdfjs-dist v3 uses .js (not .mjs)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
-export default function ScriptPdfViewer({ url }: { url: string }) {
+interface Props {
+    url: string;
+    scriptId: string;
+    productionId: string;
+    token: string;
+}
+
+export default function ScriptPdfViewer({ url: initialUrl, scriptId, productionId, token }: Props) {
+    const [url, setUrl] = useState(initialUrl);
     const [numPages, setNumPages] = useState(0);
     const [pageNumber, setPageNumber] = useState(1);
     const [scale, setScale] = useState(1.2);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     const btnCls =
         'p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
+
+    const refreshUrl = async () => {
+        setRefreshing(true);
+        try {
+            const res = await fetch(
+                `/api/proxy/productions/${productionId}/scripts/${scriptId}/url`,
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (res.ok) {
+                const data = await res.json();
+                setUrl(data.url);
+                setError(false);
+                setLoading(true);
+            }
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-neutral-950">
@@ -88,11 +116,19 @@ export default function ScriptPdfViewer({ url }: { url: string }) {
             {/* ── PDF canvas area ── */}
             <div className="flex-1 overflow-auto flex justify-center py-6 px-4">
                 {error ? (
-                    <div className="flex flex-col items-center justify-center gap-2 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <p className="text-sm text-red-400 font-medium">Failed to load PDF</p>
-                        <p className="text-xs text-neutral-600">
-                            The presigned URL may have expired. Try refreshing the page.
+                        <p className="text-xs text-neutral-500">
+                            The link may have expired.
                         </p>
+                        <button
+                            onClick={refreshUrl}
+                            disabled={refreshing}
+                            className="flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                            {refreshing ? 'Refreshing…' : 'Refresh link'}
+                        </button>
                     </div>
                 ) : (
                     <>

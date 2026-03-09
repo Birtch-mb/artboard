@@ -87,7 +87,12 @@ export default function SceneBreakdownWrapper({
                             Close
                         </button>
                     </div>
-                    <ScriptPdfViewer url={pdfUrl} />
+                    <ScriptPdfViewer
+                        url={pdfUrl}
+                        scriptId={script.id}
+                        productionId={productionId}
+                        token={token}
+                    />
                 </div>
 
                 {/* ── Right: Scene breakdown ── */}
