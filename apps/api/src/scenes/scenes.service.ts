@@ -10,17 +10,18 @@ import { UpdateSceneDto } from './dto/update-scene.dto';
 import { SplitSceneDto } from './dto/split-scene.dto';
 import { stripWatermark } from '../common/utils/strip-watermark';
 
-function parseSceneNumber(num: string): { prefix: number; suffix: string } {
-    const match = num.match(/^(\d+)([A-Za-z]*)$/);
-    if (!match) return { prefix: 0, suffix: num };
-    return { prefix: parseInt(match[1], 10), suffix: match[2] };
+function parseSceneNumber(num: string): { leadingAlpha: string; prefix: number; suffix: string } {
+    const match = num.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
+    if (!match) return { leadingAlpha: '', prefix: 0, suffix: num };
+    return { leadingAlpha: match[1], prefix: parseInt(match[2], 10), suffix: match[3] };
 }
 
 function compareSceneNumbers(a: string, b: string): number {
     const pa = parseSceneNumber(a);
     const pb = parseSceneNumber(b);
     if (pa.prefix !== pb.prefix) return pa.prefix - pb.prefix;
-    return pa.suffix.localeCompare(pb.suffix);
+    if (pa.suffix !== pb.suffix) return pa.suffix.localeCompare(pb.suffix);
+    return pa.leadingAlpha.localeCompare(pb.leadingAlpha);
 }
 
 const SCENE_LIST_INCLUDE = {

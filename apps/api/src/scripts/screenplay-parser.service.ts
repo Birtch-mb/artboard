@@ -162,7 +162,7 @@ export class ScreenplayParserService {
         const inlineMatch = line.match(/^(\d+[A-Z]{0,3})\s+/i);
         const sceneNumber = inlineMatch
             ? inlineMatch[1].replace(/\.$/, '').toUpperCase()
-            : pendingSceneNum ?? String(fallbackNum);
+            : pendingSceneNum ?? `S${fallbackNum}`;
 
         // Clean time of day: strip trailing scene-number noise (e.g. "NIGHT 50A")
         const cleanTime = timeRaw
