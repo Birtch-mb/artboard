@@ -310,6 +310,85 @@ export class ScriptsService {
         });
     }
 
+    /**
+     * Re-parse the script PDF and update scene numbers (and heading fields) for
+     * existing scenes that were uploaded before the scene-number fix.
+     *
+     * Strategy: sort DB scenes by their current sequential number (ascending), then
+     * match them positionally to the freshly parsed scenes (which appear in script order).
+     * Only top-level, non-deleted, non-OMITTED scenes are re-numbered.
+     */
+    async reparseSceneNumbers(
+        productionId: string,
+        scriptId: string,
+    ): Promise<{ updated: number; skipped: number }> {
+        const script = await this.prisma.script.findFirst({
+            where: { id: scriptId, productionId },
+        });
+        if (!script) throw new NotFoundException('Script not found');
+
+        // Fetch the PDF bytes from R2
+        const pdfBuffer = await this.storage.getObject(script.storageKey);
+
+        // Re-parse with the current (fixed) parser
+        const parsedScenes = await this.parser.parse(pdfBuffer);
+        if (parsedScenes.length === 0) {
+            return { updated: 0, skipped: 0 };
+        }
+
+        // Load DB scenes: top-level, non-deleted, not OMITTED
+        const dbScenes = await this.prisma.scene.findMany({
+            where: {
+                scriptId,
+                deletedAt: null,
+                parentSceneId: null,
+                changeFlag: { not: 'OMITTED' },
+            },
+            select: { id: true, sceneNumber: true },
+        });
+
+        // Sort DB scenes by their current (sequential) number so they are in
+        // script order — same order the parser produces.
+        dbScenes.sort((a, b) => {
+            const numA = parseInt(a.sceneNumber, 10) || 0;
+            const numB = parseInt(b.sceneNumber, 10) || 0;
+            if (numA !== numB) return numA - numB;
+            return a.sceneNumber.localeCompare(b.sceneNumber);
+        });
+
+        const count = Math.min(dbScenes.length, parsedScenes.length);
+        const updates: Promise<any>[] = [];
+
+        for (let i = 0; i < count; i++) {
+            const dbScene = dbScenes[i];
+            const parsed = parsedScenes[i];
+
+            // Skip if already correct
+            if (dbScene.sceneNumber === parsed.sceneNumber) continue;
+
+            updates.push(
+                this.prisma.scene.update({
+                    where: { id: dbScene.id },
+                    data: {
+                        sceneNumber: parsed.sceneNumber,
+                        intExt: parsed.intExt as any,
+                        scriptedLocationName: parsed.scriptedLocationName,
+                        timeOfDay: parsed.timeOfDay as any,
+                    },
+                }),
+            );
+        }
+
+        await Promise.all(updates);
+
+        const skipped = dbScenes.length - count;
+        this.logger.log(
+            `reparseSceneNumbers: updated ${updates.length} scenes, ${skipped} skipped (count mismatch)`,
+        );
+
+        return { updated: updates.length, skipped };
+    }
+
     async deleteScript(productionId: string, scriptId: string): Promise<void> {
         const script = await this.prisma.script.findFirst({
             where: { id: scriptId, productionId },

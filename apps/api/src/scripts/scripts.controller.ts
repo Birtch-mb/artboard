@@ -66,7 +66,18 @@ export class ScriptsController {
         return this.scriptsService.listScripts(productionId);
     }
 
-    // Declare /url before /:scriptId to avoid routing conflict
+    // Declare specific sub-paths before /:scriptId to avoid routing conflicts
+
+    @Post('scripts/:scriptId/reparse-numbers')
+    @Roles(Role.ART_DIRECTOR, Role.PRODUCTION_DESIGNER)
+    @HttpCode(HttpStatus.OK)
+    reparseSceneNumbers(
+        @Param('productionId') productionId: string,
+        @Param('scriptId') scriptId: string,
+    ) {
+        return this.scriptsService.reparseSceneNumbers(productionId, scriptId);
+    }
+
     @Get('scripts/:scriptId/url')
     getScriptUrl(
         @Param('productionId') productionId: string,
