@@ -23,22 +23,13 @@ async function proxyRequest(
 
   console.log(`[proxy] ${request.method} ${targetUrl} content-type=${contentType ?? 'none'} body-bytes=${body?.byteLength ?? 0} auth=${authorization ? 'present' : 'missing'}`);
 
+  // Phase 1: establish connection. If this throws the backend is genuinely unreachable.
+  let response: Response;
   try {
-    const response = await fetch(targetUrl, {
+    response = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
-    });
-
-    const responseText = await response.text();
-
-    console.log(`[proxy] response status=${response.status} body=${responseText.slice(0, 300)}`);
-
-    return new NextResponse(responseText, {
-      status: response.status,
-      headers: {
-        'content-type': response.headers.get('content-type') || 'application/json',
-      },
     });
   } catch (error) {
     console.error('[proxy] Backend unreachable:', error);
@@ -47,6 +38,27 @@ async function proxyRequest(
       { status: 502 },
     );
   }
+
+  // Phase 2: read body. For 204 No Content there is nothing to read, and a
+  // connection reset at this stage means the backend already completed the
+  // operation successfully — so we fall through with an empty body rather than
+  // masking the real status code with a 502.
+  let responseText = '';
+  try {
+    responseText = await response.text();
+  } catch {
+    // Body unreadable (e.g. connection reset after headers). Proceed with the
+    // real status code and an empty body — the operation succeeded on the backend.
+  }
+
+  console.log(`[proxy] response status=${response.status} body=${responseText.slice(0, 300)}`);
+
+  return new NextResponse(responseText || null, {
+    status: response.status,
+    headers: {
+      'content-type': response.headers.get('content-type') || 'application/json',
+    },
+  });
 }
 
 export {
