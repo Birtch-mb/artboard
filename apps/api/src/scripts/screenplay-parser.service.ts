@@ -34,11 +34,13 @@ const NOISE_RE = /^(\d+\.?|CONTINUED:?|CONT'D\.?|FADE IN:|FADE OUT\.|THE END\.?)
 // ALL-CAPS transition/direction lines that are not character names
 const TRANSITION_RE = /^(CUT TO:|SMASH CUT|MATCH CUT|HARD CUT|JUMP CUT|BACK TO:|INTERCUT|INTERCUT WITH|FLASHBACK|END FLASHBACK|FLASH CUT|FREEZE FRAME|TIME CUT|DISSOLVE TO:|IRIS IN:|IRIS OUT:|WIPE TO:|SUPER:|TITLE:|INTERTITLE:|OMITTED|CONTINUED)\.?:?$/i;
 
-// A standalone scene-number token on its own line (e.g. "50A", "50A.")
+// A standalone scene-number token on its own line (e.g. "50A", "50A.", "3 3", "42A 42A").
 // Pure digit lines ("50") are already removed by NOISE_RE above.
 // These appear in professional PDFs where the number is printed in the margin
-// column separately from the heading text.
-const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{1,3}\.?)$/i;
+// column separately from the heading text. Some PDFs duplicate the number in
+// both the left and right margin columns (e.g. "42A 42A") — the backreference
+// \1 matches only an identical second copy, so mismatched pairs like "3 4" are rejected.
+const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{0,3})\.?(?:\s+\1\.?)?\s*$/i;
 
 const TIME_OF_DAY_MAP: Record<string, TimeOfDay> = {
     DAY: TimeOfDay.DAY,
@@ -112,11 +114,12 @@ export class ScreenplayParserService {
                 currentHeading = this.parseHeading(line, fallbackNum, pendingSceneNum);
                 pendingSceneNum = null; // consumed
             } else if (SCENE_NUM_ONLY_RE.test(line)) {
-                // Margin scene-number token (e.g. "50A").
+                // Margin scene-number token (e.g. "50A" or "42A 42A").
                 // Could be the left-margin number before the next heading, or the
                 // right-margin duplicate after the previous heading. Either way,
                 // store it as pending and do NOT add it to the scene body text.
-                pendingSceneNum = line.replace(/\.$/, '').toUpperCase();
+                // Use capture group 1 so duplicated pairs ("42A 42A") resolve to "42A".
+                pendingSceneNum = line.match(SCENE_NUM_ONLY_RE)![1].toUpperCase();
             } else if (currentHeading) {
                 bodyLines.push(line);
             }
