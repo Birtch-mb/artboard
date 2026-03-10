@@ -26,7 +26,7 @@ export interface ParsedScene {
 //   [optional num]  INT./EXT./INT./EXT.  LOCATION  -  TIME OF DAY  [optional num]
 // Allows up to 3 letters after the scene number (e.g. 50A, 50AB, 50ABC)
 const HEADING_RE =
-    /^(?:\d+[A-Z]{0,3}\s+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+(.+?)\s*[-–—]\s*(.+?)(?:\s+\d+[A-Z]{0,3}\.?\s*)?$/i;
+    /^(?:\d+[A-Z]{0,3}\s+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+(.+?)\s*[-–—]\s*([A-Z0-9\s]+?)(?:[\s\t]+\d+[A-Z]{0,3}[*.\s]*)*$/i;
 
 // Lines that are only a page number, CONTINUED, or script header/footer noise
 const NOISE_RE = /^(\d+\.?|CONTINUED:?|CONT'D\.?|FADE IN:|FADE OUT\.|THE END\.?)$/i;
