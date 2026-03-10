@@ -34,12 +34,13 @@ const NOISE_RE = /^(\d+\.?|CONTINUED:?|CONT'D\.?|FADE IN:|FADE OUT\.|THE END\.?)
 // ALL-CAPS transition/direction lines that are not character names
 const TRANSITION_RE = /^(CUT TO:|SMASH CUT|MATCH CUT|HARD CUT|JUMP CUT|BACK TO:|INTERCUT|INTERCUT WITH|FLASHBACK|END FLASHBACK|FLASH CUT|FREEZE FRAME|TIME CUT|DISSOLVE TO:|IRIS IN:|IRIS OUT:|WIPE TO:|SUPER:|TITLE:|INTERTITLE:|OMITTED|CONTINUED)\.?:?$/i;
 
-// A standalone scene-number token on its own line (e.g. "50A", "50A.", "3 3", "42A 42A").
-// Pure digit lines ("50") are already removed by NOISE_RE above.
+// A standalone scene-number token on its own line (e.g. "50", "50A", "50A.", "3 3", "42A 42A").
 // These appear in professional PDFs where the number is printed in the margin
 // column separately from the heading text. Some PDFs duplicate the number in
 // both the left and right margin columns (e.g. "42A 42A") — the backreference
 // \1 matches only an identical second copy, so mismatched pairs like "3 4" are rejected.
+// Pure digit lines ("50") also match NOISE_RE; the pre-filter uses one-line lookahead
+// to keep them when they immediately precede a scene heading.
 const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{0,3})\.?(?:\s+\1\.?)?\s*$/i;
 
 const TIME_OF_DAY_MAP: Record<string, TimeOfDay> = {
@@ -82,10 +83,29 @@ export class ScreenplayParserService {
     }
 
     private parseText(rawText: string): ParsedScene[] {
-        const lines = rawText
+        const rawLines = rawText
             .split('\n')
             .map((l) => l.trim())
-            .filter((l) => l.length > 0 && !NOISE_RE.test(l));
+            .filter((l) => l.length > 0);
+
+        // Filter noise, but use one-line lookahead for pure digit/scene-number tokens:
+        // a line like "50" could be a page number OR a margin scene number. It is kept
+        // only when it matches SCENE_NUM_ONLY_RE AND the very next raw line is a scene
+        // heading. Any other NOISE_RE match (CONTINUED, FADE IN, uncontextualised digits)
+        // is discarded as before.
+        const lines: string[] = [];
+        for (let i = 0; i < rawLines.length; i++) {
+            const line = rawLines[i];
+            if (!NOISE_RE.test(line)) {
+                lines.push(line);
+            } else if (
+                SCENE_NUM_ONLY_RE.test(line) &&
+                this.isSceneHeading(rawLines[i + 1] ?? '')
+            ) {
+                lines.push(line); // margin scene number immediately before a heading
+            }
+            // else: page number / footer noise — drop
+        }
 
         const scenes: ParsedScene[] = [];
         let fallbackNum = 0;
