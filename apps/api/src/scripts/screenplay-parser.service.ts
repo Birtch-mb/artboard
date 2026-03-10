@@ -41,7 +41,7 @@ const TRANSITION_RE = /^(CUT TO:|SMASH CUT|MATCH CUT|HARD CUT|JUMP CUT|BACK TO:|
 // \1 matches only an identical second copy, so mismatched pairs like "3 4" are rejected.
 // Pure digit lines ("50") also match NOISE_RE; the pre-filter uses one-line lookahead
 // to keep them when they immediately precede a scene heading.
-const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{0,3})\.?(?:\s+\1\.?)?\s*$/i;
+const SCENE_NUM_ONLY_RE = /^(\d+[A-Z]{0,3})\.?(?:\s+\1\.?)?\s*\**\s*$/i;
 
 const TIME_OF_DAY_MAP: Record<string, TimeOfDay> = {
     DAY: TimeOfDay.DAY,
@@ -78,14 +78,14 @@ export class ScreenplayParserService {
             this.logger.warn(`PDF parse failed, scenes will not be auto-created: ${err.message}`);
             return [];
         } finally {
-            await parser.destroy().catch(() => {/* ignore cleanup errors */});
+            await parser.destroy().catch(() => {/* ignore cleanup errors */ });
         }
     }
 
     private parseText(rawText: string): ParsedScene[] {
         const rawLines = rawText
             .split('\n')
-            .map((l) => l.trim())
+            .map((l) => l.trim().replace(/^\[S\d+\s*[-–—]\s*fallback\]\s*/i, ''))
             .filter((l) => l.length > 0);
 
         // Filter noise, but use one-line lookahead for pure digit/scene-number tokens:
