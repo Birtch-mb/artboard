@@ -54,9 +54,9 @@ const API_URL = '/api/proxy';
 function sortScenes(scenes: SceneData[]) {
   return [...scenes].sort((a, b) => {
     const parse = (n: string): [number, string] => {
-      const m = n.match(/^(\d+)([A-Za-z]*)$/);
+      const m = n.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
       if (!m) return [0, n];
-      return [parseInt(m[1], 10), m[2] || ''];
+      return [parseInt(m[2], 10), m[3] || ''];
     };
     const [aNum, aAlpha] = parse(a.sceneNumber);
     const [bNum, bAlpha] = parse(b.sceneNumber);
@@ -69,9 +69,9 @@ function sortEntries(entries: ScheduleEntry[]) {
   return [...entries].sort((a, b) => {
     if (a.order !== b.order) return a.order - b.order;
     const parse = (n: string): [number, string] => {
-      const m = n.match(/^(\d+)([A-Za-z]*)$/);
+      const m = n.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
       if (!m) return [0, n];
-      return [parseInt(m[1], 10), m[2] || ''];
+      return [parseInt(m[2], 10), m[3] || ''];
     };
     const [aNum, aAlpha] = parse(a.scene.sceneNumber);
     const [bNum, bAlpha] = parse(b.scene.sceneNumber);

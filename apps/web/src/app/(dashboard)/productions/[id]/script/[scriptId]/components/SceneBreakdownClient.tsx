@@ -76,9 +76,9 @@ const TIME_OF_DAY_OPTIONS = [
 // ─── Scene sort ───────────────────────────────────────────────────────────────
 
 function parseSceneNumber(num: string) {
-    const match = num.match(/^(\d+)([A-Za-z]*)$/);
+    const match = num.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
     if (!match) return { prefix: 0, suffix: num };
-    return { prefix: parseInt(match[1], 10), suffix: match[2] };
+    return { prefix: parseInt(match[2], 10), suffix: match[3] };
 }
 
 function compareSceneNumbers(a: string, b: string): number {
