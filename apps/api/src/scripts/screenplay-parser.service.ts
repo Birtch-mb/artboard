@@ -111,6 +111,7 @@ export class ScreenplayParserService {
                 pendingSceneNum = null; // consumed
             } else if (SCENE_NUM_RE.test(line)) {
                 pendingSceneNum = line.match(SCENE_NUM_RE)![1].toUpperCase();
+                this.logger.log(`[parser] scene-num token matched: "${line}" → ${pendingSceneNum}`);
             } else if (currentHeading) {
                 bodyLines.push(line);
             }
@@ -150,6 +151,8 @@ export class ScreenplayParserService {
         const [, intExtRaw, locationRaw, timeRaw] = match;
 
         const sceneNumber = pendingSceneNum ?? `S${fallbackNum}`;
+        if (!pendingSceneNum) this.logger.warn(`[parser] no pending scene num for heading — fallback S${fallbackNum}: "${line.slice(0, 80)}"`);
+        else this.logger.log(`[parser] heading "${line.slice(0, 80)}" → scene ${sceneNumber}`);
 
         // Clean time of day: strip trailing scene-number noise (e.g. "NIGHT 50A")
         const cleanTime = timeRaw
