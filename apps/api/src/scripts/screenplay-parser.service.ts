@@ -150,9 +150,11 @@ export class ScreenplayParserService {
 
         const [, intExtRaw, locationRaw, timeRaw] = match;
 
-        const sceneNumber = pendingSceneNum ?? `S${fallbackNum}`;
-        if (!pendingSceneNum) this.logger.warn(`[parser] no pending scene num for heading — fallback S${fallbackNum}: "${line.slice(0, 80)}"`);
-        else this.logger.log(`[parser] heading "${line.slice(0, 80)}" → scene ${sceneNumber}`);
+        // Scene numbers are tab-separated at the end of the heading line: "INT. ROOM - NIGHT\t1 \t1"
+        const trailingMatch = line.match(/\t(\d+[A-Z]{0,3})\s+\1[\s*.\t]*$/i);
+        const sceneNumber = trailingMatch
+            ? trailingMatch[1].toUpperCase()
+            : pendingSceneNum ?? `S${fallbackNum}`;
 
         // Clean time of day: strip trailing scene-number noise (e.g. "NIGHT 50A")
         const cleanTime = timeRaw
