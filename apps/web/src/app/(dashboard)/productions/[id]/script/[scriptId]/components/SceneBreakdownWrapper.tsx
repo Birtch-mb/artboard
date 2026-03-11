@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronLeft, BookOpen, X, Hash, Loader2 } from 'lucide-react';
+import { ChevronLeft, BookOpen, X } from 'lucide-react';
 import SceneBreakdownClient from './SceneBreakdownClient';
 
 // Dynamically import the PDF viewer (client-only — pdfjs uses browser APIs)
@@ -48,32 +48,6 @@ export default function SceneBreakdownWrapper({
     initialWatermarkName,
 }: Props) {
     const [showPdf, setShowPdf] = useState(false);
-    const [reparsing, setReparsing] = useState(false);
-    const [reparseMsg, setReparseMsg] = useState<string | null>(null);
-
-    const handleReparse = useCallback(async () => {
-        if (reparsing) return;
-        setReparsing(true);
-        setReparseMsg(null);
-        try {
-            const res = await fetch(
-                `/api/proxy/productions/${productionId}/scripts/${script.id}/reparse-numbers`,
-                { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
-            );
-            if (res.ok) {
-                const data = await res.json();
-                setReparseMsg(`Updated ${data.updated} scene number${data.updated !== 1 ? 's' : ''}.`);
-                // Brief pause so the user can see the confirmation, then reload
-                setTimeout(() => window.location.reload(), 1200);
-            } else {
-                setReparseMsg('Failed to re-parse. Please try again.');
-            }
-        } catch {
-            setReparseMsg('Network error. Please try again.');
-        } finally {
-            setReparsing(false);
-        }
-    }, [productionId, script.id, token, reparsing]);
 
     const sceneBreakdown = (
         <SceneBreakdownClient
@@ -90,27 +64,6 @@ export default function SceneBreakdownWrapper({
             showScriptDeletions={showScriptDeletions}
             initialWatermarkName={initialWatermarkName}
         />
-    );
-
-    // Reusable "Fix scene #s" button + feedback message
-    const reparseButton = canEdit && (
-        <div className="flex flex-col items-end gap-1">
-            <button
-                onClick={handleReparse}
-                disabled={reparsing}
-                className="flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-400 hover:bg-neutral-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Re-read scene numbers from the PDF"
-            >
-                {reparsing
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Hash className="h-4 w-4" />
-                }
-                {reparsing ? 'Re-parsing…' : 'Fix scene #s'}
-            </button>
-            {reparseMsg && (
-                <p className="text-xs text-emerald-400">{reparseMsg}</p>
-            )}
-        </div>
     );
 
     // ── Split pane ─────────────────────────────────────────────────────────────
@@ -162,7 +115,6 @@ export default function SceneBreakdownWrapper({
                                     Scene breakdown — {scenes.length} scene{scenes.length !== 1 ? 's' : ''}
                                 </p>
                             </div>
-                            {reparseButton}
                         </div>
 
                         {sceneBreakdown}
@@ -186,16 +138,13 @@ export default function SceneBreakdownWrapper({
                     </p>
                 </div>
 
-                <div className="flex items-start gap-2 shrink-0">
-                    {reparseButton}
-                    <button
-                        onClick={() => setShowPdf(true)}
-                        className="flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors shrink-0"
-                    >
-                        <BookOpen className="h-4 w-4" />
-                        View Script
-                    </button>
-                </div>
+                <button
+                    onClick={() => setShowPdf(true)}
+                    className="flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors shrink-0"
+                >
+                    <BookOpen className="h-4 w-4" />
+                    View Script
+                </button>
             </div>
 
             {sceneBreakdown}
