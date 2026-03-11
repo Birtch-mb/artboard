@@ -111,7 +111,6 @@ export class ScreenplayParserService {
                 pendingSceneNum = null; // consumed
             } else if (SCENE_NUM_RE.test(line)) {
                 pendingSceneNum = line.match(SCENE_NUM_RE)![1].toUpperCase();
-                this.logger.log(`[parser] scene-num token matched: "${line}" → ${pendingSceneNum}`);
             } else if (currentHeading) {
                 bodyLines.push(line);
             }
