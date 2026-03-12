@@ -3,10 +3,13 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ProductionsService } from './productions.service';
 import { CreateProductionDto } from './dto/create-production.dto';
@@ -50,5 +53,19 @@ export class ProductionsController {
     @Request() req: AuthRequest,
   ) {
     return this.productionsService.update(id, dto, req.productionMember.role as Role);
+  }
+
+  @Delete(':id')
+  @UseGuards(ProductionMemberGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  softDelete(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.productionsService.softDelete(id, req.productionMember.role as Role);
+  }
+
+  @Delete(':id/hard')
+  @UseGuards(ProductionMemberGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  hardDelete(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.productionsService.hardDelete(id, req.productionMember.role as Role);
   }
 }

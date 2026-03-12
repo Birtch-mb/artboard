@@ -16,6 +16,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { GanttModule } from './gantt/gantt.module';
 import { ActivityModule } from './activity/activity.module';
 import { BudgetModule } from './budget/budget.module';
+import { AdminModule } from './admin/admin.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     GanttModule,
     ActivityModule,
     BudgetModule,
+    AdminModule,
   ],
 })
 export class AppModule { }

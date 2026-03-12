@@ -17,14 +17,28 @@ import {
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface Props {
-    url: string;
+    url: string;        // kept for backwards-compat but not used; proxy URL is derived from ids
     scriptId: string;
     productionId: string;
     token: string;
 }
 
-export default function ScriptPdfViewer({ url: initialUrl, scriptId, productionId, token }: Props) {
-    const [url, setUrl] = useState(initialUrl);
+/**
+ * We serve the PDF through a server-side proxy route (/api/pdf/:productionId/:scriptId)
+ * so that the browser never contacts R2 directly.  R2 doesn't set CORS headers,
+ * which causes PDF.js to fail when it tries to fetch the presigned URL from the browser.
+ *
+ * The proxy route (apps/web/src/app/api/pdf/...) authenticates via the session cookie,
+ * fetches a fresh presigned URL from the NestJS API, then streams the PDF bytes back
+ * under our own origin — so PDF.js sees no CORS issue at all.
+ *
+ * A cache-busting query param is appended each time the user clicks "Refresh link"
+ * so the browser re-fetches (bypassing any short-lived browser cache) without us
+ * having to change the structural URL.
+ */
+export default function ScriptPdfViewer({ scriptId, productionId }: Props) {
+    const proxyBase = `/api/pdf/${productionId}/${scriptId}`;
+    const [url, setUrl] = useState(`${proxyBase}?v=${Date.now()}`);
     const [numPages, setNumPages] = useState(0);
     const [pageNumber, setPageNumber] = useState(1);
     const [scale, setScale] = useState(1.2);
@@ -35,22 +49,13 @@ export default function ScriptPdfViewer({ url: initialUrl, scriptId, productionI
     const btnCls =
         'p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
 
-    const refreshUrl = async () => {
+    const refreshUrl = () => {
         setRefreshing(true);
-        try {
-            const res = await fetch(
-                `/api/proxy/productions/${productionId}/scripts/${scriptId}/url`,
-                { headers: { Authorization: `Bearer ${token}` } },
-            );
-            if (res.ok) {
-                const data = await res.json();
-                setUrl(data.url);
-                setError(false);
-                setLoading(true);
-            }
-        } finally {
-            setRefreshing(false);
-        }
+        setError(false);
+        setLoading(true);
+        // Append a new cache-bust param so the browser re-fetches from the proxy
+        setUrl(`${proxyBase}?v=${Date.now()}`);
+        setRefreshing(false);
     };
 
     return (
@@ -119,7 +124,7 @@ export default function ScriptPdfViewer({ url: initialUrl, scriptId, productionI
                     <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <p className="text-sm text-red-400 font-medium">Failed to load PDF</p>
                         <p className="text-xs text-neutral-500">
-                            The link may have expired.
+                            The file could not be retrieved from storage.
                         </p>
                         <button
                             onClick={refreshUrl}
@@ -127,7 +132,7 @@ export default function ScriptPdfViewer({ url: initialUrl, scriptId, productionI
                             className="flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                            {refreshing ? 'Refreshing…' : 'Refresh link'}
+                            {refreshing ? 'Refreshing…' : 'Retry'}
                         </button>
                     </div>
                 ) : (

@@ -6,6 +6,7 @@ const ME_SELECT = {
     id: true,
     email: true,
     name: true,
+    isAdmin: true,
     showScriptDeletions: true,
 } as const;
 

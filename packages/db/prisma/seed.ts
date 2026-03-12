@@ -8,11 +8,12 @@ async function main() {
 
   const adUser = await prisma.user.upsert({
     where: { email: 'ad@artboard.dev' },
-    update: {},
+    update: { isAdmin: true },
     create: {
       email: 'ad@artboard.dev',
       name: 'Art Director',
       passwordHash,
+      isAdmin: true,
     },
   });
 

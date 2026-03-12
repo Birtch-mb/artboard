@@ -6,6 +6,7 @@ import { Role } from '@/lib/types';
 import { InviteMemberForm } from './invite-form';
 import { MemberRow } from './member-row';
 import { GanttSettings } from './gantt-settings';
+import { DangerZone } from './danger-zone';
 
 const ROLE_LABELS: Record<Role, string> = {
   ART_DIRECTOR: 'Art Director',
@@ -28,9 +29,17 @@ export default async function MembersSettingsPage({ params }: { params: { id: st
   if (!session?.accessToken || session.error === 'RefreshAccessTokenError') redirect('/login');
 
   let members: Member[];
+  let productionName = '';
+  let isDeleted = false;
   try {
     const client = createApiClient(session.accessToken);
-    members = await client.get<Member[]>(`/productions/${params.id}/members`);
+    const [membersData, production] = await Promise.all([
+      client.get<Member[]>(`/productions/${params.id}/members`),
+      client.get<any>(`/productions/${params.id}`),
+    ]);
+    members = membersData;
+    productionName = production.name;
+    isDeleted = !!production.deletedAt;
   } catch (err) {
     if (err instanceof ApiError && err.statusCode === 401) redirect('/login');
     notFound();
@@ -38,6 +47,7 @@ export default async function MembersSettingsPage({ params }: { params: { id: st
 
   const myMember = members.find((m) => m.user.id === session.user?.id);
   const isAD = myMember?.role === Role.ART_DIRECTOR;
+  const canDelete = myMember?.role === Role.ART_DIRECTOR || myMember?.role === Role.PRODUCTION_DESIGNER;
 
   return (
     <div className="px-8 py-8 max-w-4xl">
@@ -77,6 +87,15 @@ export default async function MembersSettingsPage({ params }: { params: { id: st
       </div>
 
       {isAD && <GanttSettings productionId={params.id} token={session.accessToken!} />}
+
+      {canDelete && (
+        <DangerZone
+          productionId={params.id}
+          productionName={productionName}
+          token={session.accessToken!}
+          isDeleted={isDeleted}
+        />
+      )}
     </div>
   );
 }

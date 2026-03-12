@@ -3,6 +3,7 @@ import { createApiClient, ApiError } from '@/lib/api-client';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ProductionStatus, Role } from '@/lib/types';
+import DeleteProductionButton from './components/DeleteProductionButton';
 
 const STATUS_LABELS: Record<ProductionStatus, string> = {
   PRE_PRODUCTION: 'Pre-Production',
@@ -78,39 +79,51 @@ export default async function ProductionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {productions.map((prod) => {
             const myRole = prod.members[0]?.role;
+            const canDelete = myRole === Role.ART_DIRECTOR || myRole === Role.PRODUCTION_DESIGNER;
             return (
-              <Link
-                key={prod.id}
-                href={`/productions/${prod.id}`}
-                className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-600 transition-colors group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-white font-semibold text-base group-hover:text-blue-300 transition-colors leading-tight">
-                    {prod.name}
-                  </h2>
-                  <span
-                    className={`ml-2 shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[prod.status]}`}
-                  >
-                    {STATUS_LABELS[prod.status]}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  {myRole && (
-                    <span className="text-gray-400">{ROLE_LABELS[myRole]}</span>
+              <div key={prod.id} className="relative group">
+                <Link
+                  href={`/productions/${prod.id}`}
+                  className="block bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-600 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h2 className="text-white font-semibold text-base group-hover:text-blue-300 transition-colors leading-tight">
+                      {prod.name}
+                    </h2>
+                    <span
+                      className={`ml-2 shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[prod.status]}`}
+                    >
+                      {STATUS_LABELS[prod.status]}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    {myRole && (
+                      <span className="text-gray-400">{ROLE_LABELS[myRole]}</span>
+                    )}
+                    <span>{prod._count.members} member{prod._count.members !== 1 ? 's' : ''}</span>
+                  </div>
+                  {(prod.startDate || prod.wrapDate) && (
+                    <div className="mt-3 pt-3 border-t border-gray-800 text-xs text-gray-600 flex gap-3">
+                      {prod.startDate && (
+                        <span>Start: {new Date(prod.startDate).toLocaleDateString()}</span>
+                      )}
+                      {prod.wrapDate && (
+                        <span>Wrap: {new Date(prod.wrapDate).toLocaleDateString()}</span>
+                      )}
+                    </div>
                   )}
-                  <span>{prod._count.members} member{prod._count.members !== 1 ? 's' : ''}</span>
-                </div>
-                {(prod.startDate || prod.wrapDate) && (
-                  <div className="mt-3 pt-3 border-t border-gray-800 text-xs text-gray-600 flex gap-3">
-                    {prod.startDate && (
-                      <span>Start: {new Date(prod.startDate).toLocaleDateString()}</span>
-                    )}
-                    {prod.wrapDate && (
-                      <span>Wrap: {new Date(prod.wrapDate).toLocaleDateString()}</span>
-                    )}
+                </Link>
+                {canDelete && (
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DeleteProductionButton
+                      productionId={prod.id}
+                      productionName={prod.name}
+                      token={session.accessToken!}
+                      mode="soft"
+                    />
                   </div>
                 )}
-              </Link>
+              </div>
             );
           })}
         </div>
