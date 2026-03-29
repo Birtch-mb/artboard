@@ -993,7 +993,7 @@ function SceneDetail({
                                         className="w-full text-left px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors"
                                     >
                                         {asset.name}
-                                        <span className="text-neutral-600 ml-1">({asset.category})</span>
+                                        <span className="text-neutral-600 ml-1">({asset.department})</span>
                                     </button>
                                 ))}
                             </div>

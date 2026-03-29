@@ -9,16 +9,29 @@ export interface LogActivityDto {
   entityName: string;
   action: string;
   actorId: string;
+  assetDepartment?: string;
   metadata?: Record<string, any>;
 }
+
+// Roles always notified for asset events regardless of department
+const ASSET_ALWAYS_NOTIFY = ['ART_DIRECTOR', 'PRODUCTION_DESIGNER'];
+
+// Department → additional roles to notify
+const ASSET_DEPT_ROLES: Record<string, string[]> = {
+  PROPS: ['PROPS_MASTER'],
+  SET_DEC: ['SET_DECORATOR', 'LEADMAN'],
+  GRAPHICS: [],
+  SPFX: [],
+  CONSTRUCTION: [],
+  PICTURE_CARS: [],
+  OTHER: [],
+};
 
 // Roles that should receive notifications for a given action
 const NOTIFY_RULES: Record<string, string[]> = {
   SCRIPT_UPLOADED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER'],
   SCRIPT_FLAGGED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER'],
   SCHEDULE_PUBLISHED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER', 'COORDINATOR', 'SET_DECORATOR', 'LEADMAN', 'PROPS_MASTER', 'VIEWER'],
-  ASSET_CREATED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER', 'SET_DECORATOR'],
-  ASSET_STATUS_CHANGED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER', 'SET_DECORATOR', 'LEADMAN'],
   SHOOT_DAY_CREATED: ['ART_DIRECTOR', 'PRODUCTION_DESIGNER', 'COORDINATOR', 'SET_DECORATOR', 'LEADMAN', 'PROPS_MASTER', 'VIEWER'],
 };
 
@@ -27,9 +40,9 @@ function getNotifyKey(entityType: string, action: string): string {
   if (entityType === 'SCRIPT' && action === 'FLAGGED') return 'SCRIPT_FLAGGED';
   if (entityType === 'SCENE' && action === 'FLAGGED') return 'SCRIPT_FLAGGED';
   if (entityType === 'SCHEDULE' && action === 'PUBLISHED') return 'SCHEDULE_PUBLISHED';
-  if (entityType === 'ASSET' && action === 'CREATED') return 'ASSET_CREATED';
-  if (entityType === 'ASSET' && action === 'STATUS_CHANGED') return 'ASSET_STATUS_CHANGED';
   if (entityType === 'SHOOT_DAY' && action === 'CREATED') return 'SHOOT_DAY_CREATED';
+  // ASSET notifications are handled separately with department-aware logic
+  if (entityType === 'ASSET') return 'ASSET';
   return '';
 }
 
@@ -66,7 +79,14 @@ export class ActivityService {
     // Fan-out notifications
     const notifyKey = getNotifyKey(dto.entityType, dto.action);
     if (notifyKey) {
-      const rolesToNotify = NOTIFY_RULES[notifyKey] ?? [];
+      let rolesToNotify: string[];
+      if (notifyKey === 'ASSET') {
+        // Department-aware fan-out: always notify AD/PD, plus dept-specific roles
+        const deptRoles = ASSET_DEPT_ROLES[dto.assetDepartment ?? 'OTHER'] ?? [];
+        rolesToNotify = [...ASSET_ALWAYS_NOTIFY, ...deptRoles];
+      } else {
+        rolesToNotify = NOTIFY_RULES[notifyKey] ?? [];
+      }
       const members = await this.prisma.productionMember.findMany({
         where: { productionId: dto.productionId, role: { in: rolesToNotify as any[] } },
         select: { userId: true, role: true },

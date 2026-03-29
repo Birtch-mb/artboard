@@ -27,7 +27,8 @@ export class BudgetService {
       select: {
         id: true,
         name: true,
-        category: true,
+        department: true,
+        subDepartment: true,
         sourceVendor: true,
         budgetCost: true,
         actualCost: true,
@@ -50,7 +51,8 @@ export class BudgetService {
       return {
         assetId: asset.id,
         assetName: asset.name,
-        category: asset.category,
+        department: asset.department,
+        subDepartment: asset.subDepartment ?? null,
         sourceVendor: asset.sourceVendor ?? null,
         budgetCost,
         actualCost,

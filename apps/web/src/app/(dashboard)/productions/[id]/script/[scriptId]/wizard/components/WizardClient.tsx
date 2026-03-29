@@ -35,7 +35,7 @@ interface Scene {
 
 interface SetLocation { location: { id: string; name: string }; }
 interface ProductionSet { id: string; name: string; locations: SetLocation[]; }
-interface Asset { id: string; name: string; category: string; }
+interface Asset { id: string; name: string; department: string; }
 interface Character { id: string; name: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,20 +59,14 @@ const TIME_OF_DAY_LABELS: Record<string, string> = {
     CONTINUOUS: 'Continuous', LATER: 'Later', MOMENTS_LATER: 'Moments Later',
 };
 
-const ASSET_CATEGORY_OPTIONS = [
-    { value: 'PROPS', label: 'Props' },
-    { value: 'SET_DRESSING', label: 'Set Dressing' },
-    { value: 'GRAPHICS', label: 'Graphics' },
-    { value: 'FURNITURE', label: 'Furniture' },
-    { value: 'VEHICLES', label: 'Vehicles' },
-    { value: 'EXPENDABLES', label: 'Expendables' },
-    { value: 'SOFT_FURNISHINGS', label: 'Soft Furnishings' },
-    { value: 'GREENS', label: 'Greens' },
-    { value: 'WEAPONS', label: 'Weapons' },
-    { value: 'FOOD', label: 'Food' },
-    { value: 'ANIMALS', label: 'Animals' },
-    { value: 'SPECIAL_EFFECTS', label: 'Special Effects' },
-    { value: 'OTHER', label: 'Other' },
+const ASSET_DEPT_OPTIONS = [
+    { value: 'PROPS',        label: 'Props' },
+    { value: 'SET_DEC',      label: 'Set Dec' },
+    { value: 'GRAPHICS',     label: 'Graphics' },
+    { value: 'SPFX',         label: 'SPFX' },
+    { value: 'CONSTRUCTION', label: 'Construction' },
+    { value: 'PICTURE_CARS', label: 'Picture Cars' },
+    { value: 'OTHER',        label: 'Other' },
 ];
 
 function slugline(scene: Scene): string {
@@ -235,7 +229,7 @@ function CreateAssetModal({
     onCreated: (asset: Asset) => void;
 }) {
     const [name, setName] = useState('');
-    const [category, setCategory] = useState('PROPS');
+    const [department, setDepartment] = useState('PROPS');
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -257,7 +251,7 @@ function CreateAssetModal({
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     name: name.trim(),
-                    category,
+                    department,
                     notes: notes.trim() || undefined,
                 }),
             });
@@ -313,13 +307,13 @@ function CreateAssetModal({
                         />
                     </div>
                     <div>
-                        <label className={labelCls}>Category <span className="text-red-400">*</span></label>
+                        <label className={labelCls}>Department <span className="text-red-400">*</span></label>
                         <select
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
                             className={inputCls}
                         >
-                            {ASSET_CATEGORY_OPTIONS.map((opt) => (
+                            {ASSET_DEPT_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value} className="bg-neutral-900">
                                     {opt.label}
                                 </option>
@@ -1232,7 +1226,7 @@ function AssetSearch({
                             className="w-full text-left px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors"
                         >
                             {a.name}
-                            <span className="text-neutral-600 ml-1">({a.category})</span>
+                            <span className="text-neutral-600 ml-1">({a.department})</span>
                         </button>
                     ))}
                 </div>

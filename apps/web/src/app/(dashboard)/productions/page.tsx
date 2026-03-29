@@ -114,7 +114,7 @@ export default async function ProductionsPage() {
                   )}
                 </Link>
                 {canDelete && (
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DeleteProductionButton
                       productionId={prod.id}
                       productionName={prod.name}

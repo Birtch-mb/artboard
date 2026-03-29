@@ -175,7 +175,8 @@ export class ScenesService {
                             select: {
                                 id: true,
                                 name: true,
-                                category: true,
+                                department: true,
+                                subDepartment: true,
                                 status: true,
                             },
                         },

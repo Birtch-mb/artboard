@@ -30,20 +30,14 @@ const TIME_OF_DAY_LABELS: Record<string, string> = {
     MOMENTS_LATER: 'Moments Later',
 };
 
-const ASSET_CATEGORY_LABELS: Record<string, string> = {
-    PROPS: 'Props',
-    SET_DRESSING: 'Set Dressing',
-    GRAPHICS: 'Graphics',
-    FURNITURE: 'Furniture',
-    VEHICLES: 'Vehicles',
-    EXPENDABLES: 'Expendables',
-    SOFT_FURNISHINGS: 'Soft Furnishings',
-    GREENS: 'Greens',
-    WEAPONS: 'Weapons',
-    FOOD: 'Food',
-    ANIMALS: 'Animals',
-    SPECIAL_EFFECTS: 'Special Effects',
-    OTHER: 'Other',
+const ASSET_DEPT_LABELS: Record<string, string> = {
+    PROPS:        'Props',
+    SET_DEC:      'Set Dec',
+    GRAPHICS:     'Graphics',
+    SPFX:         'SPFX',
+    CONSTRUCTION: 'Construction',
+    PICTURE_CARS: 'Picture Cars',
+    OTHER:        'Other',
 };
 
 export default function CharacterDetailClient({
@@ -174,7 +168,8 @@ export default function CharacterDetailClient({
                         id: created.id,
                         assetId: created.assetId,
                         assetName: created.asset.name,
-                        assetCategory: created.asset.category,
+                        assetDepartment: created.asset.department,
+                        assetSubDepartment: created.asset.subDepartment,
                         assetStatus: created.asset.status,
                         setId: created.setId,
                         setName: created.set?.name ?? null,
@@ -370,7 +365,7 @@ export default function CharacterDetailClient({
                             <option value="">Select asset…</option>
                             {unassignedAssets.map((a) => (
                                 <option key={a.id} value={a.id}>
-                                    {a.name} ({ASSET_CATEGORY_LABELS[a.category] ?? a.category})
+                                    {a.name} ({ASSET_DEPT_LABELS[a.department] ?? a.department})
                                 </option>
                             ))}
                         </select>
@@ -431,7 +426,7 @@ export default function CharacterDetailClient({
                                             {ca.assetName}
                                         </Link>
                                         <span className="text-xs text-neutral-500 shrink-0">
-                                            {ASSET_CATEGORY_LABELS[ca.assetCategory] ?? ca.assetCategory}
+                                            {ASSET_DEPT_LABELS[ca.assetDepartment] ?? ca.assetDepartment}
                                         </span>
                                     </div>
                                     {ca.setName ? (

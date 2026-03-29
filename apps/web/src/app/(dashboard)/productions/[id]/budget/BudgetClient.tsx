@@ -5,7 +5,8 @@ import { useState, useMemo } from 'react';
 interface LineItem {
   assetId: string;
   assetName: string;
-  category: string;
+  department: string;
+  subDepartment: string | null;
   sourceVendor: string | null;
   budgetCost: number;
   actualCost: number;
@@ -31,18 +32,20 @@ interface BudgetData {
   vendorSummary: VendorSummary[];
 }
 
-// Department definitions — categories map to the owning department
-const DEPARTMENTS: { name: string; categories: string[] }[] = [
-  { name: 'Props', categories: ['PROPS', 'WEAPONS', 'FOOD', 'ANIMALS', 'EXPENDABLES'] },
-  { name: 'Set Dressing', categories: ['SET_DRESSING', 'FURNITURE', 'SOFT_FURNISHINGS'] },
-  { name: 'Art', categories: ['GRAPHICS'] },
-  { name: 'Picture Vehicles', categories: ['VEHICLES'] },
-  { name: 'Greens', categories: ['GREENS'] },
-  { name: 'Special Effects', categories: ['SPECIAL_EFFECTS'] },
-  { name: 'Other', categories: ['OTHER'] },
-];
+const DEPT_LABELS: Record<string, string> = {
+  PROPS:        'Props',
+  SET_DEC:      'Set Dec',
+  GRAPHICS:     'Graphics',
+  SPFX:         'SPFX',
+  CONSTRUCTION: 'Construction',
+  PICTURE_CARS: 'Picture Cars',
+  OTHER:        'Other',
+};
+
+const DEPT_ORDER = ['PROPS', 'SET_DEC', 'GRAPHICS', 'SPFX', 'CONSTRUCTION', 'PICTURE_CARS', 'OTHER'];
 
 interface Department {
+  key: string;
   name: string;
   assets: LineItem[];
   totalBudget: number;
@@ -51,18 +54,21 @@ interface Department {
 }
 
 function buildDepartments(lineItems: LineItem[]): Department[] {
-  return DEPARTMENTS.map((dept) => {
-    const assets = lineItems.filter((a) => dept.categories.includes(a.category));
+  const map = new Map<string, LineItem[]>();
+  for (const item of lineItems) {
+    const existing = map.get(item.department) ?? [];
+    existing.push(item);
+    map.set(item.department, existing);
+  }
+  const depts: Department[] = [];
+  for (const key of DEPT_ORDER) {
+    const assets = map.get(key);
+    if (!assets || assets.length === 0) continue;
     const totalBudget = assets.reduce((s, a) => s + a.budgetCost, 0);
     const totalActual = assets.reduce((s, a) => s + a.actualCost, 0);
-    return {
-      name: dept.name,
-      assets,
-      totalBudget,
-      totalActual,
-      variance: totalActual - totalBudget,
-    };
-  }).filter((d) => d.assets.length > 0);
+    depts.push({ key, name: DEPT_LABELS[key] ?? key, assets, totalBudget, totalActual, variance: totalActual - totalBudget });
+  }
+  return depts;
 }
 
 function fmt(n: number): string {
@@ -147,14 +153,14 @@ export default function BudgetClient({ data, productionName }: Props) {
   const departments = useMemo(() => buildDepartments(data.lineItems), [data.lineItems]);
 
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
-    new Set(departments.map((d) => d.name)),
+    new Set(departments.map((d) => d.key)),
   );
 
-  const toggleDept = (name: string) => {
+  const toggleDept = (key: string) => {
     setExpandedDepts((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -197,10 +203,10 @@ export default function BudgetClient({ data, productionName }: Props) {
       ) : (
         <div className="space-y-3">
           {departments.map((dept) => (
-            <div key={dept.name} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div key={dept.key} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               {/* Department header */}
               <button
-                onClick={() => toggleDept(dept.name)}
+                onClick={() => toggleDept(dept.key)}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-800/40 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -225,13 +231,13 @@ export default function BudgetClient({ data, productionName }: Props) {
                     </p>
                   </div>
                   <span className="text-gray-600 text-xs ml-2">
-                    {expandedDepts.has(dept.name) ? '▲' : '▼'}
+                    {expandedDepts.has(dept.key) ? '▲' : '▼'}
                   </span>
                 </div>
               </button>
 
               {/* Line items */}
-              {expandedDepts.has(dept.name) && (
+              {expandedDepts.has(dept.key) && (
                 <div className="border-t border-gray-800">
                   <table className="w-full text-sm">
                     <thead>

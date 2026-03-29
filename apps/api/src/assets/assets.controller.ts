@@ -15,22 +15,24 @@ import {
     FileTypeValidator,
     Logger,
     InternalServerErrorException,
+    BadRequestException,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { BulkReassignDto } from './dto/bulk-reassign.dto';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { AssignSetDto } from './dto/assign-set.dto';
 import { AssignTagDto } from './dto/assign-tag.dto';
 import { CreateContinuityDto } from './dto/create-continuity.dto';
 import { UpdateContinuityDto } from './dto/update-continuity.dto';
-import { BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ProductionMemberGuard } from '../common/guards/production-member.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ProductionMember } from '../common/decorators/production-member.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import 'multer';
 
@@ -80,22 +82,33 @@ export class AssetsController {
     findAll(
         @Param('productionId') productionId: string,
         @Query('setId') setId?: string,
-        @Query('category') category?: string,
+        @Query('department') department?: string,
+        @Query('subDepartment') subDepartment?: string,
         @Query('tagIds') tagIds?: string,
         @Query('status') status?: string,
         @Query('search') search?: string,
-        @CurrentUser() user?: any,
+        @ProductionMember() member?: any,
     ) {
-        return this.assetsService.findAll(productionId, { setId, category, tagIds, status, search }, user);
+        return this.assetsService.findAll(productionId, { setId, department, subDepartment, tagIds, status, search }, member);
     }
 
     @Get('assets/:assetId')
     findOne(
         @Param('productionId') productionId: string,
         @Param('assetId') assetId: string,
-        @CurrentUser() user?: any,
+        @ProductionMember() member?: any,
     ) {
-        return this.assetsService.findOne(productionId, assetId, user);
+        return this.assetsService.findOne(productionId, assetId, member);
+    }
+
+    @Patch('assets/bulk')
+    @Roles(Role.ART_DIRECTOR, Role.PRODUCTION_DESIGNER, Role.SET_DECORATOR, Role.PROPS_MASTER)
+    bulkReassign(
+        @Param('productionId') productionId: string,
+        @Body() dto: BulkReassignDto,
+        @ProductionMember() member?: any,
+    ) {
+        return this.assetsService.bulkReassign(productionId, dto, member);
     }
 
     @Patch('assets/:assetId')

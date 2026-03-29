@@ -60,7 +60,7 @@ export class CharactersService {
                             select: {
                                 id: true,
                                 name: true,
-                                category: true,
+                                department: true, subDepartment: true,
                                 status: true,
                             },
                         },
@@ -88,7 +88,8 @@ export class CharactersService {
                 id: ca.id,
                 assetId: ca.assetId,
                 assetName: ca.asset.name,
-                assetCategory: ca.asset.category,
+                assetDepartment: ca.asset.department,
+                assetSubDepartment: ca.asset.subDepartment,
                 assetStatus: ca.asset.status,
                 setId: ca.setId,
                 setName: ca.set?.name ?? null,
@@ -203,7 +204,7 @@ export class CharactersService {
                     notes: dto.notes ?? null,
                 },
                 include: {
-                    asset: { select: { id: true, name: true, category: true, status: true } },
+                    asset: { select: { id: true, name: true, department: true, subDepartment: true, status: true } },
                     set: { select: { id: true, name: true } },
                 },
             });
@@ -217,7 +218,7 @@ export class CharactersService {
                 notes: dto.notes ?? null,
             },
             include: {
-                asset: { select: { id: true, name: true, category: true, status: true } },
+                asset: { select: { id: true, name: true, department: true, subDepartment: true, status: true } },
                 set: { select: { id: true, name: true } },
             },
         });

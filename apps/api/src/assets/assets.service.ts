@@ -4,18 +4,39 @@ import { StorageService } from '../storage/storage.service';
 import { ActivityService } from '../activity/activity.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { BulkReassignDto } from './dto/bulk-reassign.dto';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { CreateContinuityDto } from './dto/create-continuity.dto';
 import { UpdateContinuityDto } from './dto/update-continuity.dto';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { AssetDepartment, AssetSubDepartment, Role } from '../common/types';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 
 interface CurrentUser {
     sub: string;
-    productionRole?: Role;
+    productionRole?: string;
     permissions?: { showBudget: boolean };
 }
+
+interface ProductionMemberContext {
+    role: string;
+    userId: string;
+    coordinatorVisibility?: { showBudget: boolean } | null;
+}
+
+// Roles that receive notifications for a given department's asset events
+const DEPT_ROLES: Record<string, string[]> = {
+    PROPS: [Role.PROPS_MASTER],
+    SET_DEC: [Role.SET_DECORATOR, Role.LEADMAN],
+    GRAPHICS: [],
+    SPFX: [],
+    CONSTRUCTION: [],
+    PICTURE_CARS: [],
+    OTHER: [],
+};
+
+const ALWAYS_NOTIFY = [Role.ART_DIRECTOR, Role.PRODUCTION_DESIGNER];
 
 @Injectable()
 export class AssetsService {
@@ -25,13 +46,17 @@ export class AssetsService {
         private readonly activity: ActivityService,
     ) { }
 
-    private checkBudgetVisibility(user: CurrentUser) {
-        if (user.productionRole === Role.ART_DIRECTOR || user.productionRole === Role.PRODUCTION_DESIGNER) {
-            return true;
+    private checkBudgetVisibility(member: ProductionMemberContext | null, user?: CurrentUser): boolean {
+        // Prefer the ProductionMemberContext (set by guard) when available
+        if (member) {
+            if (member.role === Role.ART_DIRECTOR || member.role === Role.PRODUCTION_DESIGNER) return true;
+            if (member.role === Role.COORDINATOR && member.coordinatorVisibility?.showBudget) return true;
+            return false;
         }
-        if (user.productionRole === Role.COORDINATOR && user.permissions?.showBudget) {
-            return true;
-        }
+        // Fallback for callers that only pass CurrentUser (legacy path)
+        if (!user) return false;
+        if (user.productionRole === Role.ART_DIRECTOR || user.productionRole === Role.PRODUCTION_DESIGNER) return true;
+        if (user.productionRole === Role.COORDINATOR && user.permissions?.showBudget) return true;
         return false;
     }
 
@@ -61,6 +86,14 @@ export class AssetsService {
     async createAsset(productionId: string, dtos: CreateAssetDto, actorId?: string) {
         const { tagIds, setIds, ...data } = dtos;
 
+        // Cross-field validation: subDepartment must match parent department
+        if (data.subDepartment === AssetSubDepartment.GREENS && data.department !== AssetDepartment.SET_DEC) {
+            throw new BadRequestException('subDepartment GREENS requires department SET_DEC');
+        }
+        if (data.subDepartment === AssetSubDepartment.MGFX && data.department !== AssetDepartment.GRAPHICS) {
+            throw new BadRequestException('subDepartment MGFX requires department GRAPHICS');
+        }
+
         const asset = await this.prisma.asset.create({
             data: {
                 ...data,
@@ -82,20 +115,28 @@ export class AssetsService {
                 entityName: asset.name,
                 action: 'CREATED',
                 actorId,
+                assetDepartment: asset.department,
             }).catch(() => {}); // never block on activity logging
         }
 
         return asset;
     }
 
-    async findAll(productionId: string, filters: { setId?: string, category?: string, tagIds?: string, status?: string, search?: string }, user: CurrentUser) {
+    async findAll(
+        productionId: string,
+        filters: { setId?: string; department?: string; subDepartment?: string; tagIds?: string; status?: string; search?: string },
+        member: ProductionMemberContext,
+    ) {
         const where: Prisma.AssetWhereInput = { productionId, deletedAt: null };
 
         if (filters.setId) {
             where.setAssignments = { some: { setId: filters.setId } };
         }
-        if (filters.category) {
-            where.category = filters.category as any;
+        if (filters.department) {
+            where.department = filters.department as any;
+        }
+        if (filters.subDepartment) {
+            where.subDepartment = filters.subDepartment as any;
         }
         if (filters.status) {
             where.status = filters.status as any;
@@ -106,41 +147,75 @@ export class AssetsService {
         if (filters.tagIds) {
             const tagIdList = filters.tagIds.split(',').map(id => id.trim()).filter(Boolean);
             if (tagIdList.length > 0) {
-                // AND logic: must have ALL provided tags
                 where.AND = tagIdList.map(tagId => ({
                     tags: { some: { tagId } }
                 }));
             }
         }
 
-        const assets = await this.prisma.asset.findMany({
-            where,
-            include: {
-                tags: { include: { tag: true } },
-                setAssignments: { include: { set: true } },
-                _count: {
-                    select: { setAssignments: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        const [assets, departmentCountsRaw] = await Promise.all([
+            this.prisma.asset.findMany({
+                where,
+                include: {
+                    tags: { include: { tag: true } },
+                    setAssignments: { include: { set: true } },
+                    _count: { select: { setAssignments: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            }),
+            this.prisma.asset.groupBy({
+                by: ['department'],
+                where: { productionId, deletedAt: null },
+                _count: { department: true },
+            }),
+        ]);
 
-        const canSeeBudget = this.checkBudgetVisibility(user);
+        // Build departmentCounts with all 7 departments always present (0 if none)
+        const departmentCounts: Record<string, number> = {
+            PROPS: 0, GRAPHICS: 0, SPFX: 0, SET_DEC: 0,
+            CONSTRUCTION: 0, PICTURE_CARS: 0, OTHER: 0,
+        };
+        for (const row of departmentCountsRaw) {
+            departmentCounts[row.department] = row._count.department;
+        }
 
-        return assets.map(asset => {
+        const canSeeBudget = this.checkBudgetVisibility(member);
+
+        // Budget totals per department for the stats row
+        const budgetTotals: Record<string, number> = {};
+        const sourcingCounts: Record<string, number> = {};
+
+        const mappedAssets = assets.map(asset => {
+            const dept = asset.department;
+            const budget = asset.budgetCost ? Number(asset.budgetCost) : 0;
+            budgetTotals[dept] = (budgetTotals[dept] ?? 0) + budget;
+            if (asset.status === 'IN_SOURCING') {
+                sourcingCounts[dept] = (sourcingCounts[dept] ?? 0) + 1;
+            }
+
+            const a = { ...asset } as any;
             if (!canSeeBudget) {
-                asset.budgetCost = null;
-                asset.actualCost = null;
+                a.budgetCost = null;
+                a.actualCost = null;
             }
             return {
-                ...asset,
+                ...a,
                 tags: asset.tags.map(t => t.tag),
-                sets: asset.setAssignments.map(s => s.set)
+                sets: asset.setAssignments.map(s => s.set),
             };
         });
+
+        return {
+            assets: mappedAssets,
+            departmentCounts,
+            departmentStats: {
+                budgetTotals: canSeeBudget ? budgetTotals : undefined,
+                sourcingCounts,
+            },
+        };
     }
 
-    async findOne(productionId: string, assetId: string, user: CurrentUser) {
+    async findOne(productionId: string, assetId: string, member: ProductionMemberContext) {
         const asset = await this.prisma.asset.findFirst({
             where: { id: assetId, productionId, deletedAt: null },
             include: {
@@ -156,14 +231,15 @@ export class AssetsService {
 
         if (!asset) throw new NotFoundException('Asset not found');
 
-        const canSeeBudget = this.checkBudgetVisibility(user);
+        const canSeeBudget = this.checkBudgetVisibility(member);
+        const a = { ...asset } as any;
         if (!canSeeBudget) {
-            asset.budgetCost = null;
-            asset.actualCost = null;
+            a.budgetCost = null;
+            a.actualCost = null;
         }
 
         return {
-            ...asset,
+            ...a,
             tags: asset.tags.map(t => t.tag),
             sets: asset.setAssignments.map(s => s.set),
         };
@@ -174,9 +250,32 @@ export class AssetsService {
 
         const { tagIds, setIds, ...data } = dto;
 
+        // Cross-field validation
+        if (data.subDepartment === AssetSubDepartment.GREENS && data.department !== undefined && data.department !== AssetDepartment.SET_DEC) {
+            throw new BadRequestException('subDepartment GREENS requires department SET_DEC');
+        }
+        if (data.subDepartment === AssetSubDepartment.MGFX && data.department !== undefined && data.department !== AssetDepartment.GRAPHICS) {
+            throw new BadRequestException('subDepartment MGFX requires department GRAPHICS');
+        }
+
+        // Auto-clear subDepartment if department changes to one incompatible with current subDepartment
+        let subDepartmentClear: any = {};
+        const newDept = data.department ?? existing.department;
+        const currentSub = existing.subDepartment;
+        if (currentSub === AssetSubDepartment.GREENS && newDept !== AssetDepartment.SET_DEC) {
+            subDepartmentClear = { subDepartment: null, greenSpecies: null, greenNursery: null, greenNotes: null };
+        } else if (currentSub === AssetSubDepartment.MGFX && newDept !== AssetDepartment.GRAPHICS) {
+            subDepartmentClear = { subDepartment: null };
+        }
+
+        // If subDepartment is explicitly being changed away from GREENS, clear green fields
+        if (data.subDepartment !== undefined && data.subDepartment !== AssetSubDepartment.GREENS && currentSub === AssetSubDepartment.GREENS) {
+            subDepartmentClear = { ...subDepartmentClear, greenSpecies: null, greenNursery: null, greenNotes: null };
+        }
+
         const updated = await this.prisma.asset.update({
             where: { id: assetId },
-            data,
+            data: { ...data, ...subDepartmentClear },
         });
 
         if (actorId) {
@@ -188,6 +287,7 @@ export class AssetsService {
                 entityName: updated.name,
                 action: isStatusChange ? 'STATUS_CHANGED' : 'UPDATED',
                 actorId,
+                assetDepartment: updated.department,
                 metadata: isStatusChange
                     ? { oldStatus: existing.status, newStatus: dto.status }
                     : undefined,
@@ -195,6 +295,70 @@ export class AssetsService {
         }
 
         return updated;
+    }
+
+    async bulkReassign(productionId: string, dto: BulkReassignDto, member: ProductionMemberContext) {
+        const { ids, department, subDepartment } = dto;
+
+        // Cross-field validation
+        if (subDepartment === AssetSubDepartment.GREENS && department !== AssetDepartment.SET_DEC) {
+            throw new BadRequestException('subDepartment GREENS requires department SET_DEC');
+        }
+        if (subDepartment === AssetSubDepartment.MGFX && department !== AssetDepartment.GRAPHICS) {
+            throw new BadRequestException('subDepartment MGFX requires department GRAPHICS');
+        }
+
+        // Role-scoped access: PROPS_MASTER can only reassign TO PROPS, SET_DECORATOR TO SET_DEC
+        const role = member.role;
+        if (role === Role.PROPS_MASTER && department !== AssetDepartment.PROPS) {
+            throw new ForbiddenException('Props Master can only reassign assets to the Props department');
+        }
+        if (role === Role.SET_DECORATOR && department !== AssetDepartment.SET_DEC) {
+            throw new ForbiddenException('Set Decorator can only reassign assets to the Set Dec department');
+        }
+
+        // Verify all ids belong to this production (prevent cross-production bulk ops)
+        const assets = await this.prisma.asset.findMany({
+            where: { id: { in: ids }, deletedAt: null },
+            select: { id: true, productionId: true, subDepartment: true },
+        });
+
+        const foreign = assets.filter(a => a.productionId !== productionId);
+        if (foreign.length > 0) {
+            throw new ForbiddenException('One or more assets do not belong to this production');
+        }
+        if (assets.length !== ids.length) {
+            throw new BadRequestException('One or more asset IDs not found');
+        }
+
+        // Clear green fields for any assets leaving GREENS
+        const clearGreenFields = assets.some(a => a.subDepartment === AssetSubDepartment.GREENS) &&
+            subDepartment !== AssetSubDepartment.GREENS;
+
+        await this.prisma.asset.updateMany({
+            where: { id: { in: ids } },
+            data: {
+                department: department as any,
+                subDepartment: subDepartment ? (subDepartment as any) : null,
+                ...(clearGreenFields ? { greenSpecies: null, greenNursery: null, greenNotes: null } : {}),
+            },
+        });
+
+        // Single activity log entry for the whole batch
+        if (member.userId) {
+            await this.activity.log({
+                productionId,
+                entityType: 'ASSET',
+                entityId: ids[0],
+                entityName: `${ids.length} asset${ids.length > 1 ? 's' : ''}`,
+                action: 'UPDATED',
+                actorId: member.userId,
+                assetDepartment: department,
+                metadata: { bulkIds: ids, department, subDepartment: subDepartment ?? null },
+            }).catch(() => {});
+        }
+
+        return { updated: ids.length };
     }
 
     async removeAsset(productionId: string, assetId: string, actorId?: string) {

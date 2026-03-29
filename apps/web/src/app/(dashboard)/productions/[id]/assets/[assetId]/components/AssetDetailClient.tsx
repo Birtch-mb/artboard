@@ -6,20 +6,19 @@ import { createApiClient } from '@/lib/api-client';
 import { Trash2, Edit2, Upload, Plus, AlertTriangle, Link as LinkIcon, Camera } from 'lucide-react';
 import Link from 'next/link';
 
-const ASSET_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-    PROPS: { label: 'Props', color: 'bg-blue-900/50 text-blue-300 border-blue-800' },
-    SET_DRESSING: { label: 'Set Dressing', color: 'bg-emerald-900/50 text-emerald-300 border-emerald-800' },
-    GRAPHICS: { label: 'Graphics', color: 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-800' },
-    FURNITURE: { label: 'Furniture', color: 'bg-amber-900/50 text-amber-300 border-amber-800' },
-    VEHICLES: { label: 'Vehicles', color: 'bg-indigo-900/50 text-indigo-300 border-indigo-800' },
-    EXPENDABLES: { label: 'Expendables', color: 'bg-orange-900/50 text-orange-300 border-orange-800' },
-    SOFT_FURNISHINGS: { label: 'Soft Furnishings', color: 'bg-pink-900/50 text-pink-300 border-pink-800' },
-    GREENS: { label: 'Greens', color: 'bg-lime-900/50 text-lime-300 border-lime-800' },
-    WEAPONS: { label: 'Weapons', color: 'bg-red-900/50 text-red-300 border-red-800' },
-    FOOD: { label: 'Food', color: 'bg-yellow-900/50 text-yellow-300 border-yellow-800' },
-    ANIMALS: { label: 'Animals', color: 'bg-cyan-900/50 text-cyan-300 border-cyan-800' },
-    SPECIAL_EFFECTS: { label: 'Special Effects', color: 'bg-violet-900/50 text-violet-300 border-violet-800' },
-    OTHER: { label: 'Other', color: 'bg-neutral-800 text-neutral-400 border-neutral-700' },
+const ASSET_DEPT_CONFIG: Record<string, { label: string; color: string }> = {
+    PROPS:        { label: 'Props',          color: 'bg-blue-900/50 text-blue-300 border-blue-800' },
+    SET_DEC:      { label: 'Set Dec',        color: 'bg-emerald-900/50 text-emerald-300 border-emerald-800' },
+    GRAPHICS:     { label: 'Graphics',       color: 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-800' },
+    SPFX:         { label: 'SPFX',           color: 'bg-orange-900/50 text-orange-300 border-orange-800' },
+    CONSTRUCTION: { label: 'Construction',   color: 'bg-slate-700/50 text-slate-300 border-slate-600' },
+    PICTURE_CARS: { label: 'Picture Cars',   color: 'bg-indigo-900/50 text-indigo-300 border-indigo-800' },
+    OTHER:        { label: 'Other',          color: 'bg-neutral-800 text-neutral-400 border-neutral-700' },
+};
+
+const SUBDEPT_CONFIG: Record<string, { label: string; color: string }> = {
+    GREENS: { label: 'Greens', color: 'bg-lime-900/50 text-lime-300 border-lime-700' },
+    MGFX:   { label: 'MGFX',   color: 'bg-violet-900/50 text-violet-300 border-violet-700' },
 };
 
 const ASSET_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -325,9 +324,14 @@ export default function AssetDetailClient({
                 <div className="flex items-start justify-between">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
-                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ASSET_CATEGORY_LABELS[asset.category]?.color || 'bg-neutral-800 text-neutral-400'}`}>
-                                {ASSET_CATEGORY_LABELS[asset.category]?.label || asset.category}
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ASSET_DEPT_CONFIG[asset.department]?.color || 'bg-neutral-800 text-neutral-400'}`}>
+                                {ASSET_DEPT_CONFIG[asset.department]?.label || asset.department}
                             </span>
+                            {asset.subDepartment && (
+                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${SUBDEPT_CONFIG[asset.subDepartment]?.color || 'bg-neutral-800 text-neutral-400'}`}>
+                                    {SUBDEPT_CONFIG[asset.subDepartment]?.label || asset.subDepartment}
+                                </span>
+                            )}
                             <select
                                 value={asset.status}
                                 onChange={(e) => canEdit ? handleUpdateStatus(e.target.value) : null}
@@ -393,6 +397,29 @@ export default function AssetDetailClient({
                             <p className="text-sm text-neutral-300 whitespace-pre-wrap">{asset.notes || <span className="text-neutral-500 italic">No notes added.</span>}</p>
                         )}
                     </section>
+
+                    {/* Greens Details */}
+                    {asset.subDepartment === 'GREENS' && (
+                        <section className="bg-lime-950/20 rounded-xl border border-lime-800/40 p-6 flex flex-col gap-4">
+                            <h2 className="text-lg font-semibold text-lime-400">Greens Details</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Species</p>
+                                    <p className="text-neutral-200">{asset.greenSpecies || <span className="text-neutral-500 italic">Not specified</span>}</p>
+                                </div>
+                                <div>
+                                    <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Nursery</p>
+                                    <p className="text-neutral-200">{asset.greenNursery || <span className="text-neutral-500 italic">Not specified</span>}</p>
+                                </div>
+                                {asset.greenNotes && (
+                                    <div className="sm:col-span-2">
+                                        <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Greens Notes</p>
+                                        <p className="text-neutral-300 whitespace-pre-wrap">{asset.greenNotes}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    )}
 
                     {/* Photos Region */}
                     <section className="flex flex-col gap-4">

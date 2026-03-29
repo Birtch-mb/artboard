@@ -117,9 +117,39 @@ async function main() {
     },
   });
 
+  // Seed standard item-type tags (idempotent)
+  const ITEM_TYPE_TAGS = [
+    'Hero Prop',
+    'Hand Prop',
+    'Furniture',
+    'Soft Furnishings',
+    'Weapons',
+    'Food',
+    'Animals',
+    'Expendables',
+    'Vehicles',
+  ];
+
+  for (const tagName of ITEM_TYPE_TAGS) {
+    await prisma.assetTag.upsert({
+      where: {
+        productionId_name: {
+          productionId: production.id,
+          name: tagName,
+        },
+      },
+      update: {},
+      create: {
+        productionId: production.id,
+        name: tagName,
+      },
+    });
+  }
+
   console.log('Seed complete:', {
     users: [adUser.email, pdUser.email, coordUser.email, viewerUser.email],
     production: production.name,
+    tags: ITEM_TYPE_TAGS.length,
   });
 }
 

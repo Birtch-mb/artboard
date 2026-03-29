@@ -1,14 +1,37 @@
-import { IsString, IsEnum, IsOptional, IsInt, Min, IsNumber, IsUUID, IsArray, MaxLength } from 'class-validator';
+import {
+    IsString, IsEnum, IsOptional, IsInt, Min, IsNumber,
+    IsUUID, IsArray, MaxLength, ValidateIf,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { AssetCategory, AssetStatus } from '@prisma/client';
+import { AssetStatus } from '@prisma/client';
+import { AssetDepartment, AssetSubDepartment } from '../../common/types';
 
 export class CreateAssetDto {
     @IsString()
     @MaxLength(200)
     name: string;
 
-    @IsEnum(AssetCategory)
-    category: AssetCategory;
+    @IsEnum(AssetDepartment)
+    @IsOptional()
+    department?: AssetDepartment;
+
+    @IsEnum(AssetSubDepartment)
+    @IsOptional()
+    @ValidateIf((o) => o.subDepartment !== undefined && o.subDepartment !== null)
+    subDepartment?: AssetSubDepartment;
+
+    // Greens metadata — only meaningful when subDepartment=GREENS
+    @IsString()
+    @IsOptional()
+    greenSpecies?: string;
+
+    @IsString()
+    @IsOptional()
+    greenNursery?: string;
+
+    @IsString()
+    @IsOptional()
+    greenNotes?: string;
 
     @IsString()
     @IsOptional()

@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Role } from '@/lib/types';
 import NewAssetForm from './components/NewAssetForm';
 
-export default async function NewAssetPage({ params }: { params: { id: string } }) {
+export default async function NewAssetPage({ params, searchParams }: { params: { id: string }; searchParams: { dept?: string } }) {
     const session = await auth();
     if (!session?.accessToken || session.error === 'RefreshAccessTokenError') redirect('/login');
 
@@ -50,7 +50,7 @@ export default async function NewAssetPage({ params }: { params: { id: string } 
                 </p>
             </div>
 
-            <NewAssetForm productionId={params.id} token={session.accessToken} tags={tags} sets={sets} canSeeBudget={canSeeBudget} />
+            <NewAssetForm productionId={params.id} token={session.accessToken} tags={tags} sets={sets} canSeeBudget={canSeeBudget} defaultDept={searchParams.dept} />
         </div>
     );
 }

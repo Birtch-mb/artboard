@@ -4,36 +4,56 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createApiClient } from '@/lib/api-client';
 
-const ASSET_CATEGORIES = [
-    'PROPS', 'SET_DRESSING', 'GRAPHICS', 'FURNITURE', 'VEHICLES',
-    'EXPENDABLES', 'SOFT_FURNISHINGS', 'GREENS', 'WEAPONS',
-    'FOOD', 'ANIMALS', 'SPECIAL_EFFECTS', 'OTHER'
+const ASSET_DEPARTMENTS = [
+    { value: 'PROPS', label: 'Props' },
+    { value: 'SET_DEC', label: 'Set Dec' },
+    { value: 'GRAPHICS', label: 'Graphics' },
+    { value: 'SPFX', label: 'SPFX' },
+    { value: 'CONSTRUCTION', label: 'Construction' },
+    { value: 'PICTURE_CARS', label: 'Picture Cars' },
+    { value: 'OTHER', label: 'Other' },
 ];
 
+const SUBDEPT_FOR_DEPT: Record<string, { value: string; label: string }[]> = {
+    SET_DEC: [{ value: 'GREENS', label: 'Greens' }],
+    GRAPHICS: [{ value: 'MGFX', label: 'MGFX' }],
+};
+
 const ASSET_STATUSES = [
-    'IN_SOURCING', 'CONFIRMED', 'ON_SET', 'RETURNED', 'STRUCK'
+    { value: 'IN_SOURCING', label: 'In Sourcing' },
+    { value: 'CONFIRMED', label: 'Confirmed' },
+    { value: 'ON_SET', label: 'On Set' },
+    { value: 'RETURNED', label: 'Returned' },
+    { value: 'STRUCK', label: 'Struck' },
 ];
+
+const VALID_DEPTS = ASSET_DEPARTMENTS.map(d => d.value);
 
 export default function NewAssetForm({
     productionId,
     token,
     tags,
     sets,
-    canSeeBudget
+    canSeeBudget,
+    defaultDept,
 }: {
     productionId: string;
     token: string;
     tags: any[];
     sets: any[];
     canSeeBudget: boolean;
+    defaultDept?: string;
 }) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const initialDept = defaultDept && VALID_DEPTS.includes(defaultDept) ? defaultDept : 'PROPS';
+
     const [formData, setFormData] = useState({
         name: '',
-        category: 'PROPS',
+        department: initialDept,
+        subDepartment: '',
         status: 'IN_SOURCING',
         description: '',
         notes: '',
@@ -42,10 +62,30 @@ export default function NewAssetForm({
         budgetCost: '',
         actualCost: '',
         sourceVendor: '',
+        greenSpecies: '',
+        greenNursery: '',
+        greenNotes: '',
     });
 
     const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
     const [selectedSetIds, setSelectedSetIds] = useState<string[]>([]);
+
+    const subDeptOptions = SUBDEPT_FOR_DEPT[formData.department] ?? [];
+    const isGreens = formData.subDepartment === 'GREENS';
+
+    const handleDeptChange = (dept: string) => {
+        // Clear subDepartment if not valid for new dept
+        const newSubOpts = SUBDEPT_FOR_DEPT[dept] ?? [];
+        const subStillValid = newSubOpts.some(o => o.value === formData.subDepartment);
+        setFormData(prev => ({
+            ...prev,
+            department: dept,
+            subDepartment: subStillValid ? prev.subDepartment : '',
+            greenSpecies: '',
+            greenNursery: '',
+            greenNotes: '',
+        }));
+    };
 
     const toggleTag = (id: string) => {
         setSelectedTagIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -65,7 +105,7 @@ export default function NewAssetForm({
 
             const payload: any = {
                 name: formData.name,
-                category: formData.category,
+                department: formData.department,
                 status: formData.status,
                 description: formData.description || undefined,
                 notes: formData.notes || undefined,
@@ -74,6 +114,16 @@ export default function NewAssetForm({
                 tagIds: selectedTagIds,
                 setIds: selectedSetIds,
             };
+
+            if (formData.subDepartment) {
+                payload.subDepartment = formData.subDepartment;
+            }
+
+            if (isGreens) {
+                if (formData.greenSpecies) payload.greenSpecies = formData.greenSpecies;
+                if (formData.greenNursery) payload.greenNursery = formData.greenNursery;
+                if (formData.greenNotes) payload.greenNotes = formData.greenNotes;
+            }
 
             if (canSeeBudget) {
                 if (formData.budgetCost) payload.budgetCost = parseFloat(formData.budgetCost);
@@ -84,7 +134,7 @@ export default function NewAssetForm({
             const asset: any = await client.post(`/productions/${productionId}/assets`, payload);
 
             router.push(`/productions/${productionId}/assets/${asset.id}`);
-            router.refresh(); // ensure list updates
+            router.refresh();
         } catch (err: any) {
             setError(err.message || 'Failed to create asset');
             setIsSubmitting(false);
@@ -124,14 +174,14 @@ export default function NewAssetForm({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-neutral-300">Category *</label>
+                    <label className="text-sm font-medium text-neutral-300">Department *</label>
                     <select
-                        value={formData.category}
-                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        value={formData.department}
+                        onChange={e => handleDeptChange(e.target.value)}
                         className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                     >
-                        {ASSET_CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat.replace('_', ' ')}</option>
+                        {ASSET_DEPARTMENTS.map(dept => (
+                            <option key={dept.value} value={dept.value}>{dept.label}</option>
                         ))}
                     </select>
                 </div>
@@ -144,10 +194,26 @@ export default function NewAssetForm({
                         className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                     >
                         {ASSET_STATUSES.map(stat => (
-                            <option key={stat} value={stat}>{stat.replace('_', ' ')}</option>
+                            <option key={stat.value} value={stat.value}>{stat.label}</option>
                         ))}
                     </select>
                 </div>
+
+                {subDeptOptions.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-neutral-300">Sub-Department</label>
+                        <select
+                            value={formData.subDepartment}
+                            onChange={e => setFormData({ ...formData, subDepartment: e.target.value, greenSpecies: '', greenNursery: '', greenNotes: '' })}
+                            className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                        >
+                            <option value="">None</option>
+                            {subDeptOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-sm font-medium text-neutral-300">Description</label>
@@ -208,6 +274,41 @@ export default function NewAssetForm({
                     </>
                 )}
             </div>
+
+            {isGreens && (
+                <div className="border border-lime-800/40 rounded-lg p-4 flex flex-col gap-4 bg-lime-950/20">
+                    <h3 className="text-sm font-medium text-lime-400">Greens Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-neutral-300">Species</label>
+                            <input
+                                value={formData.greenSpecies}
+                                onChange={e => setFormData({ ...formData, greenSpecies: e.target.value })}
+                                className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+                                placeholder="e.g. Ficus benjamina"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-neutral-300">Nursery</label>
+                            <input
+                                value={formData.greenNursery}
+                                onChange={e => setFormData({ ...formData, greenNursery: e.target.value })}
+                                className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+                                placeholder="e.g. Hollywood Nursery"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                            <label className="text-sm font-medium text-neutral-300">Greens Notes</label>
+                            <textarea
+                                value={formData.greenNotes}
+                                onChange={e => setFormData({ ...formData, greenNotes: e.target.value })}
+                                className="min-h-[60px] rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+                                placeholder="Care instructions, watering schedule, etc."
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="border-t border-neutral-800 pt-6">
                 <h3 className="text-sm font-medium text-white mb-4">Tags</h3>

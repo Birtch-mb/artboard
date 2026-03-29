@@ -1,5 +1,4 @@
 
-
 export enum ProductionStatus {
   PRE_PRODUCTION = 'PRE_PRODUCTION',
   ACTIVE = 'ACTIVE',
@@ -15,6 +14,21 @@ export enum Role {
   LEADMAN = 'LEADMAN',
   PROPS_MASTER = 'PROPS_MASTER',
   VIEWER = 'VIEWER',
+}
+
+export enum AssetDepartment {
+  PROPS = 'PROPS',
+  GRAPHICS = 'GRAPHICS',
+  SPFX = 'SPFX',
+  SET_DEC = 'SET_DEC',
+  CONSTRUCTION = 'CONSTRUCTION',
+  PICTURE_CARS = 'PICTURE_CARS',
+  OTHER = 'OTHER',
+}
+
+export enum AssetSubDepartment {
+  GREENS = 'GREENS',
+  MGFX = 'MGFX',
 }
 
 export interface JwtPayload {

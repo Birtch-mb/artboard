@@ -1,17 +1,16 @@
-export enum AssetCategory {
+export enum AssetDepartment {
     PROPS = 'PROPS',
-    SET_DRESSING = 'SET_DRESSING',
     GRAPHICS = 'GRAPHICS',
-    FURNITURE = 'FURNITURE',
-    VEHICLES = 'VEHICLES',
-    EXPENDABLES = 'EXPENDABLES',
-    SOFT_FURNISHINGS = 'SOFT_FURNISHINGS',
-    GREENS = 'GREENS',
-    WEAPONS = 'WEAPONS',
-    FOOD = 'FOOD',
-    ANIMALS = 'ANIMALS',
-    SPECIAL_EFFECTS = 'SPECIAL_EFFECTS',
+    SPFX = 'SPFX',
+    SET_DEC = 'SET_DEC',
+    CONSTRUCTION = 'CONSTRUCTION',
+    PICTURE_CARS = 'PICTURE_CARS',
     OTHER = 'OTHER',
+}
+
+export enum AssetSubDepartment {
+    GREENS = 'GREENS',
+    MGFX = 'MGFX',
 }
 
 export enum AssetStatus {
@@ -65,13 +64,18 @@ export interface AssetResponse {
     id: string;
     productionId: string;
     name: string;
-    category: AssetCategory;
+    department: AssetDepartment;
+    subDepartment?: AssetSubDepartment | null;
+    greenSpecies?: string | null;
+    greenNursery?: string | null;
+    greenNotes?: string | null;
     description?: string;
     notes?: string;
     dimensions?: string;
     quantity: number;
     budgetCost?: number | null;
     actualCost?: number | null;
+    sourceVendor?: string | null;
     status: AssetStatus;
 
     tags: AssetTag[];
@@ -83,5 +87,14 @@ export interface AssetResponse {
         setAssignments?: number;
         files?: number;
         continuityEvents?: number;
+    };
+}
+
+export interface AssetListResponse {
+    assets: AssetResponse[];
+    departmentCounts: Record<AssetDepartment, number>;
+    departmentStats?: {
+        budgetTotals?: Record<string, number>;
+        sourcingCounts: Record<string, number>;
     };
 }
