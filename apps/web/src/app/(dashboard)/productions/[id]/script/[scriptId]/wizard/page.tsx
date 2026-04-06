@@ -18,18 +18,18 @@ export default async function WizardPage({
     let script: any;
     let scenes: any[];
     let sets: any[];
-    let assets: any[];
+    let assetsResponse: any;
     let characters: any[];
 
     try {
         const client = createApiClient(session.accessToken);
 
-        [production, script, scenes, sets, assets, characters] = await Promise.all([
+        [production, script, scenes, sets, assetsResponse, characters] = await Promise.all([
             client.get<any>(`/productions/${params.id}`),
             client.get<any>(`/productions/${params.id}/scripts/${params.scriptId}`),
             client.get<any[]>(`/productions/${params.id}/scripts/${params.scriptId}/scenes`),
             client.get<any[]>(`/productions/${params.id}/sets`),
-            client.get<any[]>(`/productions/${params.id}/assets`),
+            client.get<any>(`/productions/${params.id}/assets`),
             client.get<any[]>(`/productions/${params.id}/characters`),
         ]);
     } catch (err) {
@@ -55,7 +55,7 @@ export default async function WizardPage({
             initialScenes={scenes}
             productionId={params.id}
             sets={sets.filter((s: any) => !s.deletedAt)}
-            assets={assets.filter((a: any) => !a.deletedAt)}
+            assets={(assetsResponse.assets ?? []).filter((a: any) => !a.deletedAt)}
             characters={characters}
             token={session.accessToken}
         />
